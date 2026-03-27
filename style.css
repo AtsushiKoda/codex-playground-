@@ -1,0 +1,142 @@
+:root {
+  --good: #2e7d32;
+  --warn: #f9a825;
+  --bad: #c62828;
+  --bg: #111827;
+  --panel: #1f2937;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --line: #374151;
+  --highlight: #60a5fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.flow-bars {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.flow-bar {
+  position: relative;
+  height: 24px;
+  border-radius: 999px;
+  background: #111827;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.flow-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+}
+
+.flow-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.75rem;
+  line-height: 24px;
+  margin-left: 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  padding: 0.5rem;
+}
+
+tr.active {
+  outline: 2px solid var(--highlight);
+  outline-offset: -2px;
+}
+
+.good,
+.node.good {
+  --tone: var(--good);
+}
+
+.warn,
+.node.warn {
+  --tone: var(--warn);
+}
+
+.bad,
+.node.bad {
+  --tone: var(--bad);
+}
+
+.flow-fill,
+.node {
+  background: color-mix(in oklab, var(--tone) var(--intensity, 35%), transparent);
+  fill: color-mix(in oklab, var(--tone) var(--intensity, 35%), #0b1220);
+}
+
+svg {
+  width: 100%;
+  height: auto;
+}
+
+.frame {
+  fill: #111827;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.bus {
+  stroke: var(--muted);
+  stroke-width: 3;
+}
+
+.label,
+.node-label {
+  fill: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.node {
+  stroke: #d1d5db;
+  stroke-opacity: 0.35;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: transform 120ms ease, stroke 120ms ease;
+}
+
+.node.active {
+  stroke: var(--highlight);
+  stroke-width: 3;
+  transform: translateY(-1px);
+}
