@@ -1,4 +1,4 @@
-const results = [
+const fallbackResults = [
   { node: 'core', label: 'Core', access: 920, missRate: 0.03 },
   { node: 'l1', label: 'L1', access: 840, missRate: 0.08 },
   { node: 'l2', label: 'L2', access: 510, missRate: 0.21 },
@@ -7,12 +7,17 @@ const results = [
   { node: 'ssd', label: 'SSD', access: 80, missRate: 0.74 }
 ];
 
+const results = Array.isArray(window.calculationResults) && window.calculationResults.length
+  ? window.calculationResults
+  : fallbackResults;
+
 const flowBars = document.getElementById('flowBars');
 const resultRows = document.getElementById('resultRows');
-const svgNodes = Array.from(document.querySelectorAll('[data-node]'));
+const hardwareMap = document.getElementById('hardwareMap');
+const svgNodes = Array.from(hardwareMap?.querySelectorAll('svg [data-node]') ?? []);
 
 const byNode = new Map(results.map((r) => [r.node, r]));
-const maxAccess = Math.max(...results.map((r) => r.access));
+const maxAccess = Math.max(1, ...results.map((r) => r.access ?? 0));
 
 function getLevel(missRate) {
   if (missRate < 0.15) return 'good';
@@ -21,6 +26,10 @@ function getLevel(missRate) {
 }
 
 function render() {
+  if (!flowBars || !resultRows || flowBars.children.length || resultRows.children.length) {
+    return;
+  }
+
   results.forEach((entry) => {
     const missPercent = Math.round(entry.missRate * 100);
     const intensity = 20 + Math.round((entry.access / maxAccess) * 70);
@@ -61,20 +70,19 @@ function bindSvgLoad() {
 }
 
 function setActive(nodeKey) {
-  document.querySelectorAll('[data-node]').forEach((el) => {
+  document.querySelectorAll('#flowBars [data-node], #hardwareMap svg [data-node], #resultRows tr[data-node]').forEach((el) => {
     el.classList.toggle('active', el.dataset.node === nodeKey);
-  });
-  document.querySelectorAll('tr[data-node]').forEach((row) => {
-    row.classList.toggle('active', row.dataset.node === nodeKey);
   });
 }
 
 function clearActive() {
-  document.querySelectorAll('.active').forEach((el) => el.classList.remove('active'));
+  document.querySelectorAll('#flowBars .active, #hardwareMap svg .active, #resultRows .active').forEach((el) => {
+    el.classList.remove('active');
+  });
 }
 
 function wireInteractions() {
-  document.querySelectorAll('.flow-bar').forEach((bar) => {
+  document.querySelectorAll('#flowBars .flow-bar').forEach((bar) => {
     bar.addEventListener('mouseenter', () => setActive(bar.dataset.node));
     bar.addEventListener('mouseleave', clearActive);
   });
