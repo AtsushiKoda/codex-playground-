@@ -7,9 +7,35 @@ const fallbackResults = [
   { node: 'ssd', label: 'SSD', access: 80, missRate: 0.74 }
 ];
 
-const results = Array.isArray(window.calculationResults) && window.calculationResults.length
+const NODE_ALIAS = {
+  core: 'core',
+  cpu: 'core',
+  l1: 'l1',
+  l2: 'l2',
+  l3: 'l3',
+  dram: 'dram',
+  memory: 'dram',
+  ram: 'dram',
+  ssd: 'ssd',
+  storage: 'ssd'
+};
+
+function canonicalNode(value) {
+  return NODE_ALIAS[String(value ?? '').toLowerCase()] ?? null;
+}
+
+const externalResults = Array.isArray(window.calculationResults) && window.calculationResults.length
   ? window.calculationResults
   : fallbackResults;
+
+const results = externalResults
+  .map((item) => ({
+    ...item,
+    node: canonicalNode(item.node),
+    access: Number(item.access ?? 0),
+    missRate: Number(item.missRate ?? 0)
+  }))
+  .filter((item) => item.node);
 
 const flowBars = document.getElementById('flowBars');
 const resultRows = document.getElementById('resultRows');
@@ -17,7 +43,7 @@ const hardwareMap = document.getElementById('hardwareMap');
 const svgNodes = Array.from(hardwareMap?.querySelectorAll('svg [data-node]') ?? []);
 
 const byNode = new Map(results.map((r) => [r.node, r]));
-const maxAccess = Math.max(1, ...results.map((r) => r.access ?? 0));
+const maxAccess = Math.max(1, ...results.map((r) => r.access));
 
 function getLevel(missRate) {
   if (missRate < 0.15) return 'good';
@@ -26,9 +52,12 @@ function getLevel(missRate) {
 }
 
 function render() {
-  if (!flowBars || !resultRows || flowBars.children.length || resultRows.children.length) {
+  if (!flowBars || !resultRows) {
     return;
   }
+
+  flowBars.replaceChildren();
+  resultRows.replaceChildren();
 
   results.forEach((entry) => {
     const missPercent = Math.round(entry.missRate * 100);
@@ -55,6 +84,7 @@ function bindSvgLoad() {
   svgNodes.forEach((nodeEl) => {
     const nodeKey = nodeEl.dataset.node;
     const data = byNode.get(nodeKey);
+    nodeEl.classList.remove('good', 'warn', 'bad');
     if (!data) return;
 
     const level = getLevel(data.missRate);
@@ -70,9 +100,11 @@ function bindSvgLoad() {
 }
 
 function setActive(nodeKey) {
-  document.querySelectorAll('#flowBars [data-node], #hardwareMap svg [data-node], #resultRows tr[data-node]').forEach((el) => {
-    el.classList.toggle('active', el.dataset.node === nodeKey);
-  });
+  document
+    .querySelectorAll('#flowBars [data-node], #hardwareMap svg [data-node], #resultRows tr[data-node]')
+    .forEach((el) => {
+      el.classList.toggle('active', el.dataset.node === nodeKey);
+    });
 }
 
 function clearActive() {
