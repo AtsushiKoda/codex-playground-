@@ -45,6 +45,73 @@ p { margin: 0.3rem 0; }
   margin-bottom: 1rem;
 }
 
+.scope-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.scope-switch__label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.scope-switch__buttons {
+  display: inline-flex;
+  border: 1px solid #355280;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #0d172a;
+}
+
+.scope-btn {
+  border: 0;
+  color: #bdd3f8;
+  background: transparent;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.scope-btn:hover {
+  background: #1d3152;
+}
+
+.scope-btn.is-active {
+  color: #081425;
+  background: linear-gradient(180deg, #7fbcff 0%, #5fa8ff 100%);
+  font-weight: 700;
+}
+
+.step-playback {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.step-btn {
+  border: 1px solid #396198;
+  border-radius: 8px;
+  background: #12233d;
+  color: #d6e6ff;
+  padding: 0.38rem 0.72rem;
+  cursor: pointer;
+}
+
+.step-btn:hover {
+  background: #1a3356;
+}
+
+.step-label {
+  min-width: 180px;
+  font-size: 0.9rem;
+  color: #bdd3f8;
+}
+
 label {
   display: grid;
   gap: 0.25rem;
@@ -129,6 +196,12 @@ output {
   grid-template-columns: 120px 1fr 120px;
   gap: 0.5rem;
   align-items: center;
+  opacity: 0.52;
+  transition: opacity 140ms ease;
+}
+
+.flow-row.is-focused {
+  opacity: 1;
 }
 
 .bar-wrap {
@@ -155,6 +228,15 @@ th, td {
   padding: 0.5rem;
   text-align: left;
   font-size: 0.92rem;
+}
+
+#cacheTableBody tr {
+  opacity: 0.52;
+  transition: opacity 140ms ease;
+}
+
+#cacheTableBody tr.is-focused {
+  opacity: 1;
 }
 
 .bad { color: var(--bad); }

@@ -17,7 +17,12 @@ const ui = {
   flowBars: document.getElementById("flowBars"),
   cacheTableBody: document.getElementById("cacheTableBody"),
   narrative: document.getElementById("narrative"),
-  archDiagram: document.getElementById("archDiagram")
+  archDiagram: document.getElementById("archDiagram"),
+  scopeButtons: Array.from(document.querySelectorAll(".scope-btn")),
+  cacheStatsPanel: document.querySelector(".cache-stats"),
+  focusPrev: document.getElementById("focusPrev"),
+  focusNext: document.getElementById("focusNext"),
+  focusStepLabel: document.getElementById("focusStepLabel")
 };
 
 const flowRowDefs = [
@@ -30,6 +35,7 @@ const flowRowDefs = [
 
 const cacheRowDefs = [
   {
+    key: "l1Access",
     label: "L1 (SRAM)",
     access: (m) => m.l1Access,
     hit: (m) => m.l1Hit,
@@ -37,6 +43,7 @@ const cacheRowDefs = [
     latencyNs: (m) => m.l1Access / 64 * 1.2
   },
   {
+    key: "l2Access",
     label: "L2 (SRAM)",
     access: (m) => m.l2Access,
     hit: (m) => 1 - (m.l2Miss / Math.max(m.l1Miss, 1e-6)),
@@ -44,6 +51,7 @@ const cacheRowDefs = [
     latencyNs: (m) => m.l2Access / 64 * 4.8
   },
   {
+    key: "l3Access",
     label: "L3 (SRAM)",
     access: (m) => m.l3Access,
     hit: (m) => 1 - (m.l3Miss / Math.max(m.l2Miss, 1e-6)),
@@ -51,6 +59,7 @@ const cacheRowDefs = [
     latencyNs: (m) => m.l3Access / 64 * 16
   },
   {
+    key: "dramAccess",
     label: "DRAM",
     access: (m) => m.dramAccess,
     hit: (m) => 1 - m.l3Miss,
@@ -58,6 +67,7 @@ const cacheRowDefs = [
     latencyNs: (m) => m.dramAccess / 64 * 85
   },
   {
+    key: "ssdAccess",
     label: "SSD",
     access: (m) => m.ssdAccess,
     hit: (m) => 1 - Math.min(1, m.ssdAccess / (m.dramAccess + 1e-6)),
@@ -69,6 +79,54 @@ const cacheRowDefs = [
 const flowRowNodes = [];
 const cacheRowNodes = [];
 let archLinks = null;
+let scopeLevel = "macro";
+let focusStepIndex = 0;
+
+const scopeConfig = {
+  macro: {
+    flowKeys: new Set(["dramAccess", "ssdAccess"]),
+    cacheLabels: new Set(["DRAM", "SSD"]),
+    showCachePanel: false
+  },
+  meso: {
+    flowKeys: new Set(["l1Access", "l2Access", "l3Access", "dramAccess"]),
+    cacheLabels: new Set(["L1 (SRAM)", "L2 (SRAM)", "L3 (SRAM)", "DRAM"]),
+    showCachePanel: true
+  },
+  micro: {
+    flowKeys: new Set(["l1Access", "l2Access", "l3Access", "dramAccess", "ssdAccess"]),
+    cacheLabels: new Set(cacheRowDefs.map((def) => def.label)),
+    showCachePanel: true
+  }
+};
+
+const stepLabels = {
+  l1Access: "L1 フォーカス",
+  l2Access: "L2 フォーカス",
+  l3Access: "L3 フォーカス",
+  dramAccess: "DRAM フォーカス",
+  ssdAccess: "SSD フォーカス"
+};
+
+function getScopeSteps(scope) {
+  return flowRowDefs
+    .map((def) => def.key)
+    .filter((key) => scopeConfig[scope].flowKeys.has(key));
+}
+
+function getFocusedKey(scope) {
+  const steps = getScopeSteps(scope);
+  if (steps.length === 0) return null;
+  focusStepIndex = ((focusStepIndex % steps.length) + steps.length) % steps.length;
+  return steps[focusStepIndex];
+}
+
+function stepFocus(delta) {
+  const steps = getScopeSteps(scopeLevel);
+  if (steps.length === 0) return;
+  focusStepIndex = (focusStepIndex + delta + steps.length) % steps.length;
+  updateUI();
+}
 
 function updateOutputs() {
   outputs.modelSize.textContent = `${inputs.modelSize.value} B`;
@@ -203,13 +261,22 @@ function initFlowRows() {
   ui.flowBars.replaceChildren(fragment);
 }
 
-function updateFlowRows(metrics) {
+function updateFlowRows(metrics, scope, focusedKey) {
+  const keysToShow = scopeConfig[scope].flowKeys;
   const maxV = Math.max(
-    ...flowRowDefs.map((def) => metrics[def.key]),
+    ...flowRowDefs
+      .filter((def) => keysToShow.has(def.key))
+      .map((def) => metrics[def.key]),
     1
   );
 
   for (const node of flowRowNodes) {
+    const isVisible = keysToShow.has(node.key);
+    const row = node.bar.closest(".flow-row");
+    row.hidden = !isVisible;
+    row.classList.toggle("is-focused", isVisible && node.key === focusedKey);
+    if (!isVisible) continue;
+
     const value = metrics[node.key];
     node.bar.style.width = `${(value / maxV) * 100}%`;
     node.value.textContent = fmtBytes(value);
@@ -239,10 +306,16 @@ function initCacheRows() {
   ui.cacheTableBody.replaceChildren(fragment);
 }
 
-function updateCacheRows(metrics) {
+function updateCacheRows(metrics, scope, focusedKey) {
+  const labelsToShow = scopeConfig[scope].cacheLabels;
   for (let i = 0; i < cacheRowDefs.length; i += 1) {
     const def = cacheRowDefs[i];
     const node = cacheRowNodes[i];
+    const isVisible = labelsToShow.has(def.label);
+    node.tr.hidden = !isVisible;
+    node.tr.classList.toggle("is-focused", isVisible && def.key === focusedKey);
+    if (!isVisible) continue;
+
     const access = def.access(metrics);
     const hit = def.hit(metrics);
     const miss = def.miss(metrics);
@@ -358,12 +431,15 @@ function initArchitectureDiagram() {
   );
 
   archLinks = {
+    computeToL1,
+    l1ToL2,
+    l2ToL3,
     l3ToDram,
     dramToSsd
   };
 }
 
-function updateArchitectureDiagram(metrics, params) {
+function updateArchitectureDiagram(metrics, params, focusedKey) {
   if (!archLinks) return;
 
   const dramRatio = clamp01(metrics.dramAccess / Math.max(params.weightBytes * 0.000005, 1));
@@ -380,23 +456,34 @@ function updateArchitectureDiagram(metrics, params) {
   archLinks.dramToSsd.text.textContent = "ssdAccess";
   updateLinkStyle(archLinks.l3ToDram, dramRatio);
   updateLinkStyle(archLinks.dramToSsd, ssdRatio);
+
+  archLinks.computeToL1.line.classList.toggle("arch-link--hot", focusedKey === "l1Access");
+  archLinks.l1ToL2.line.classList.toggle("arch-link--hot", focusedKey === "l2Access");
+  archLinks.l2ToL3.line.classList.toggle("arch-link--hot", focusedKey === "l3Access");
+  archLinks.l3ToDram.line.classList.toggle("arch-link--hot", focusedKey === "dramAccess" || dramRatio > 0.35);
+  archLinks.dramToSsd.line.classList.toggle("arch-link--hot", focusedKey === "ssdAccess" || ssdRatio > 0.35);
 }
 
 function updateUI() {
   updateOutputs();
   const m = compute();
+  const scope = scopeConfig[scopeLevel] ? scopeLevel : "macro";
+  const focusedKey = getFocusedKey(scope);
 
   ui.ttft.textContent = `${m.ttftMs.toFixed(1)} ms`;
   ui.decodeLatency.textContent = `${m.decodeLatencyMs.toFixed(2)} ms/token`;
   ui.throughput.textContent = `${m.tokensPerSec.toFixed(1)} tokens/s`;
   ui.bottleneck.textContent = bottleneckLabel(m);
 
-  updateFlowRows(m);
-  updateCacheRows(m);
+  ui.cacheStatsPanel.hidden = !scopeConfig[scope].showCachePanel;
+  ui.focusStepLabel.textContent = focusedKey ? stepLabels[focusedKey] : "フォーカスなし";
+
+  updateFlowRows(m, scope, focusedKey);
+  updateCacheRows(m, scope, focusedKey);
 
   updateArchitectureDiagram(m, {
     weightBytes: +inputs.modelSize.value * 1e9 * (+inputs.quantBits.value / 8)
-  });
+  }, focusedKey);
 
   const narrative = [];
   if (m.l1Miss > 0.25) narrative.push("L1ミス率が高く、ワーキングセットがオンチップSRAMを超えています。");
@@ -410,6 +497,20 @@ function updateUI() {
 initFlowRows();
 initCacheRows();
 initArchitectureDiagram();
+
+for (const button of ui.scopeButtons) {
+  button.addEventListener("click", () => {
+    scopeLevel = button.dataset.scope || "macro";
+    focusStepIndex = 0;
+    for (const btn of ui.scopeButtons) {
+      btn.classList.toggle("is-active", btn === button);
+    }
+    updateUI();
+  });
+}
+
+ui.focusPrev.addEventListener("click", () => stepFocus(-1));
+ui.focusNext.addEventListener("click", () => stepFocus(1));
 
 for (const id of ids) {
   inputs[id].addEventListener("input", updateUI);

@@ -15,6 +15,19 @@
     <main>
       <section class="panel controls">
         <h2>推論ワークロード</h2>
+        <div class="scope-switch" role="group" aria-label="可視化スコープ">
+          <span class="scope-switch__label">表示スコープ</span>
+          <div class="scope-switch__buttons">
+            <button type="button" class="scope-btn is-active" data-scope="macro">マクロ</button>
+            <button type="button" class="scope-btn" data-scope="meso">メソ</button>
+            <button type="button" class="scope-btn" data-scope="micro">ミクロ</button>
+          </div>
+        </div>
+        <div class="step-playback" role="group" aria-label="可視化フォーカス移動">
+          <button id="focusPrev" type="button" class="step-btn">← 前へ</button>
+          <span id="focusStepLabel" class="step-label"></span>
+          <button id="focusNext" type="button" class="step-btn">次へ →</button>
+        </div>
         <div class="control-grid">
           <label>モデルサイズ (B params)
             <input id="modelSize" type="range" min="1" max="70" step="1" value="13" />
