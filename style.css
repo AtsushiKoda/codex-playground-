@@ -71,6 +71,54 @@ output {
   border: 1px solid #2b4066;
 }
 
+.architecture-map {
+  overflow: hidden;
+}
+
+#archDiagram {
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+  background: radial-gradient(circle at 30% 20%, #1a2742 0%, #0c1628 75%);
+  border-radius: 10px;
+  border: 1px solid #2c4167;
+}
+
+.arch-node rect {
+  fill: #182540;
+  stroke: #4d74aa;
+  stroke-width: 1.5;
+}
+
+.arch-node-title {
+  fill: #e8efff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.arch-node-detail {
+  fill: #9fb9e6;
+  font-size: 12px;
+}
+
+.arch-link {
+  stroke: #5ea8ff;
+  stroke-width: 3;
+  color: #5ea8ff;
+  opacity: 0.9;
+  transition: stroke-width 180ms ease, stroke 180ms ease, color 180ms ease;
+}
+
+.arch-link--hot {
+  stroke: #ff8455;
+  color: #ff8455;
+}
+
+.arch-link-label {
+  fill: #bfd5fb;
+  font-size: 12px;
+}
+
 #flowBars {
   display: grid;
   gap: 0.5rem;
