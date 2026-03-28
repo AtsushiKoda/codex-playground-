@@ -8,6 +8,65 @@ const fmt = new Intl.NumberFormat("ja-JP");
 const inputs = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const outputs = Object.fromEntries(ids.map((id) => [id, document.getElementById(`${id}Out`)]));
 
+const ui = {
+  ttft: document.getElementById("ttft"),
+  decodeLatency: document.getElementById("decodeLatency"),
+  throughput: document.getElementById("throughput"),
+  bottleneck: document.getElementById("bottleneck"),
+  flowBars: document.getElementById("flowBars"),
+  cacheTableBody: document.getElementById("cacheTableBody"),
+  narrative: document.getElementById("narrative")
+};
+
+const flowRowDefs = [
+  { key: "l1Access", label: "L1" },
+  { key: "l2Access", label: "L2" },
+  { key: "l3Access", label: "L3" },
+  { key: "dramAccess", label: "DRAM" },
+  { key: "ssdAccess", label: "SSD" }
+];
+
+const cacheRowDefs = [
+  {
+    label: "L1 (SRAM)",
+    access: (m) => m.l1Access,
+    hit: (m) => m.l1Hit,
+    miss: (m) => m.l1Miss,
+    latencyNs: (m) => m.l1Access / 64 * 1.2
+  },
+  {
+    label: "L2 (SRAM)",
+    access: (m) => m.l2Access,
+    hit: (m) => 1 - (m.l2Miss / Math.max(m.l1Miss, 1e-6)),
+    miss: (m) => m.l2Miss / Math.max(m.l1Miss, 1e-6),
+    latencyNs: (m) => m.l2Access / 64 * 4.8
+  },
+  {
+    label: "L3 (SRAM)",
+    access: (m) => m.l3Access,
+    hit: (m) => 1 - (m.l3Miss / Math.max(m.l2Miss, 1e-6)),
+    miss: (m) => m.l3Miss / Math.max(m.l2Miss, 1e-6),
+    latencyNs: (m) => m.l3Access / 64 * 16
+  },
+  {
+    label: "DRAM",
+    access: (m) => m.dramAccess,
+    hit: (m) => 1 - m.l3Miss,
+    miss: (m) => m.l3Miss,
+    latencyNs: (m) => m.dramAccess / 64 * 85
+  },
+  {
+    label: "SSD",
+    access: (m) => m.ssdAccess,
+    hit: (m) => 1 - Math.min(1, m.ssdAccess / (m.dramAccess + 1e-6)),
+    miss: (m) => Math.min(1, m.ssdAccess / (m.dramAccess + 1e-6)),
+    latencyNs: (m) => m.ssdAccess / 4096 * 80000
+  }
+];
+
+const flowRowNodes = [];
+const cacheRowNodes = [];
+
 function updateOutputs() {
   outputs.modelSize.textContent = `${inputs.modelSize.value} B`;
   outputs.contextLen.textContent = `${fmt.format(+inputs.contextLen.value)} tokens`;
@@ -111,54 +170,99 @@ function bottleneckLabel(m) {
   return "Compute寄り (on-chip SRAM活用)";
 }
 
+function createFlowRow(label) {
+  const row = document.createElement("div");
+  row.className = "flow-row";
+
+  const title = document.createElement("strong");
+  title.textContent = label;
+
+  const barWrap = document.createElement("div");
+  barWrap.className = "bar-wrap";
+  const bar = document.createElement("div");
+  bar.className = "bar";
+  barWrap.appendChild(bar);
+
+  const value = document.createElement("span");
+
+  row.append(title, barWrap, value);
+  return { bar, value, key: null };
+}
+
+function initFlowRows() {
+  const fragment = document.createDocumentFragment();
+  for (const def of flowRowDefs) {
+    const node = createFlowRow(def.label);
+    node.key = def.key;
+    flowRowNodes.push(node);
+    fragment.appendChild(node.bar.closest(".flow-row"));
+  }
+  ui.flowBars.replaceChildren(fragment);
+}
+
+function updateFlowRows(metrics) {
+  const maxV = Math.max(
+    ...flowRowDefs.map((def) => metrics[def.key]),
+    1
+  );
+
+  for (const node of flowRowNodes) {
+    const value = metrics[node.key];
+    node.bar.style.width = `${(value / maxV) * 100}%`;
+    node.value.textContent = fmtBytes(value);
+  }
+}
+
+function createCacheRow(label) {
+  const tr = document.createElement("tr");
+  const name = document.createElement("td");
+  name.textContent = label;
+  const access = document.createElement("td");
+  const hit = document.createElement("td");
+  const miss = document.createElement("td");
+  const latency = document.createElement("td");
+
+  tr.append(name, access, hit, miss, latency);
+  return { access, hit, miss, latency, tr };
+}
+
+function initCacheRows() {
+  const fragment = document.createDocumentFragment();
+  for (const def of cacheRowDefs) {
+    const node = createCacheRow(def.label);
+    cacheRowNodes.push(node);
+    fragment.appendChild(node.tr);
+  }
+  ui.cacheTableBody.replaceChildren(fragment);
+}
+
+function updateCacheRows(metrics) {
+  for (let i = 0; i < cacheRowDefs.length; i += 1) {
+    const def = cacheRowDefs[i];
+    const node = cacheRowNodes[i];
+    const access = def.access(metrics);
+    const hit = def.hit(metrics);
+    const miss = def.miss(metrics);
+
+    node.access.textContent = fmtBytes(access);
+    node.hit.textContent = pct(hit);
+    node.miss.textContent = pct(miss);
+    node.miss.className = miss > 0.4 ? "bad" : miss > 0.2 ? "warn" : "good";
+    node.latency.textContent = `${(def.latencyNs(metrics) / 1e6).toFixed(2)} ms`;
+  }
+}
+
 function updateUI() {
   updateOutputs();
   const m = compute();
 
-  document.getElementById("ttft").textContent = `${m.ttftMs.toFixed(1)} ms`;
-  document.getElementById("decodeLatency").textContent = `${m.decodeLatencyMs.toFixed(2)} ms/token`;
-  document.getElementById("throughput").textContent = `${m.tokensPerSec.toFixed(1)} tokens/s`;
-  document.getElementById("bottleneck").textContent = bottleneckLabel(m);
+  ui.ttft.textContent = `${m.ttftMs.toFixed(1)} ms`;
+  ui.decodeLatency.textContent = `${m.decodeLatencyMs.toFixed(2)} ms/token`;
+  ui.throughput.textContent = `${m.tokensPerSec.toFixed(1)} tokens/s`;
+  ui.bottleneck.textContent = bottleneckLabel(m);
 
-  const flows = [
-    ["L1", m.l1Access],
-    ["L2", m.l2Access],
-    ["L3", m.l3Access],
-    ["DRAM", m.dramAccess],
-    ["SSD", m.ssdAccess],
-  ];
-  const maxV = Math.max(...flows.map((f) => f[1]), 1);
-
-  const flowBars = document.getElementById("flowBars");
-  flowBars.innerHTML = flows.map(([name, val]) => `
-    <div class="flow-row">
-      <strong>${name}</strong>
-      <div class="bar-wrap"><div class="bar" style="width:${(val / maxV) * 100}%"></div></div>
-      <span>${fmtBytes(val)}</span>
-    </div>
-  `).join("");
-
-  const tableRows = [
-    ["L1 (SRAM)", m.l1Access, m.l1Hit, m.l1Miss, m.l1Access / 64 * 1.2],
-    ["L2 (SRAM)", m.l2Access, 1 - (m.l2Miss / Math.max(m.l1Miss, 1e-6)), (m.l2Miss / Math.max(m.l1Miss, 1e-6)), m.l2Access / 64 * 4.8],
-    ["L3 (SRAM)", m.l3Access, 1 - (m.l3Miss / Math.max(m.l2Miss, 1e-6)), (m.l3Miss / Math.max(m.l2Miss, 1e-6)), m.l3Access / 64 * 16],
-    ["DRAM", m.dramAccess, 1 - m.l3Miss, m.l3Miss, m.dramAccess / 64 * 85],
-    ["SSD", m.ssdAccess, 1 - Math.min(1, m.ssdAccess / (m.dramAccess + 1e-6)), Math.min(1, m.ssdAccess / (m.dramAccess + 1e-6)), m.ssdAccess / 4096 * 80000]
-  ];
-
-  const tbody = document.getElementById("cacheTableBody");
-  tbody.innerHTML = tableRows.map((r) => {
-    const cls = r[3] > 0.4 ? "bad" : r[3] > 0.2 ? "warn" : "good";
-    return `
-      <tr>
-        <td>${r[0]}</td>
-        <td>${fmtBytes(r[1])}</td>
-        <td>${pct(r[2])}</td>
-        <td class="${cls}">${pct(r[3])}</td>
-        <td>${(r[4] / 1e6).toFixed(2)} ms</td>
-      </tr>
-    `;
-  }).join("");
+  updateFlowRows(m);
+  updateCacheRows(m);
 
   const narrative = [];
   if (m.l1Miss > 0.25) narrative.push("L1ミス率が高く、ワーキングセットがオンチップSRAMを超えています。");
@@ -166,8 +270,11 @@ function updateUI() {
   if (m.ssdAccess > m.dramAccess * 0.25) narrative.push("SSDオフロード比率が高く、I/O待ちの影響が顕著です。");
   if (narrative.length === 0) narrative.push("現在の設定ではL1-L3再利用が効いており、比較的安定した推論です。");
 
-  document.getElementById("narrative").textContent = narrative.join(" ");
+  ui.narrative.textContent = narrative.join(" ");
 }
+
+initFlowRows();
+initCacheRows();
 
 for (const id of ids) {
   inputs[id].addEventListener("input", updateUI);
