@@ -4,6 +4,7 @@ const ids = [
 ];
 
 const fmt = new Intl.NumberFormat("ja-JP");
+const svgNs = "http://www.w3.org/2000/svg";
 
 const inputs = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const outputs = Object.fromEntries(ids.map((id) => [id, document.getElementById(`${id}Out`)]));
@@ -15,7 +16,8 @@ const ui = {
   bottleneck: document.getElementById("bottleneck"),
   flowBars: document.getElementById("flowBars"),
   cacheTableBody: document.getElementById("cacheTableBody"),
-  narrative: document.getElementById("narrative")
+  narrative: document.getElementById("narrative"),
+  archDiagram: document.getElementById("archDiagram")
 };
 
 const flowRowDefs = [
@@ -66,6 +68,7 @@ const cacheRowDefs = [
 
 const flowRowNodes = [];
 const cacheRowNodes = [];
+let archLinks = null;
 
 function updateOutputs() {
   outputs.modelSize.textContent = `${inputs.modelSize.value} B`;
@@ -252,6 +255,133 @@ function updateCacheRows(metrics) {
   }
 }
 
+function createSvgEl(tag, attrs = {}) {
+  const el = document.createElementNS(svgNs, tag);
+  Object.entries(attrs).forEach(([key, value]) => {
+    el.setAttribute(key, value);
+  });
+  return el;
+}
+
+function makeLink(id, x1, y1, x2, y2, label) {
+  const group = createSvgEl("g", { class: "arch-link-group" });
+  const line = createSvgEl("line", {
+    id,
+    class: "arch-link",
+    x1,
+    y1,
+    x2,
+    y2,
+    "marker-end": "url(#archArrow)"
+  });
+
+  const text = createSvgEl("text", {
+    class: "arch-link-label",
+    x: (Number(x1) + Number(x2)) / 2,
+    y: (Number(y1) + Number(y2)) / 2 - 8,
+    "text-anchor": "middle"
+  });
+  text.textContent = label;
+
+  group.append(line, text);
+  return { group, line, text };
+}
+
+function makeNode(x, y, w, h, label, detail = "") {
+  const group = createSvgEl("g", { class: "arch-node" });
+  const rect = createSvgEl("rect", { x, y, width: w, height: h, rx: 12, ry: 12 });
+  const title = createSvgEl("text", {
+    x: x + w / 2,
+    y: y + h / 2 - (detail ? 8 : 0),
+    "text-anchor": "middle",
+    class: "arch-node-title"
+  });
+  title.textContent = label;
+
+  group.append(rect, title);
+
+  if (detail) {
+    const sub = createSvgEl("text", {
+      x: x + w / 2,
+      y: y + h / 2 + 14,
+      "text-anchor": "middle",
+      class: "arch-node-detail"
+    });
+    sub.textContent = detail;
+    group.appendChild(sub);
+  }
+
+  return group;
+}
+
+function initArchitectureDiagram() {
+  const svg = ui.archDiagram;
+  if (!svg) return;
+
+  svg.replaceChildren();
+
+  const defs = createSvgEl("defs");
+  const marker = createSvgEl("marker", {
+    id: "archArrow",
+    viewBox: "0 0 10 10",
+    refX: "9",
+    refY: "5",
+    markerWidth: "8",
+    markerHeight: "8",
+    orient: "auto-start-reverse"
+  });
+  marker.appendChild(createSvgEl("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: "currentColor" }));
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  svg.append(
+    makeNode(60, 110, 140, 90, "Compute", "Core / Tensor"),
+    makeNode(260, 45, 120, 70, "L1"),
+    makeNode(260, 130, 120, 70, "L2"),
+    makeNode(260, 215, 120, 70, "L3"),
+    makeNode(520, 90, 150, 90, "DRAM"),
+    makeNode(760, 90, 140, 90, "SSD")
+  );
+
+  const computeToL1 = makeLink("linkComputeL1", 200, 135, 260, 80, "on-chip");
+  const l1ToL2 = makeLink("linkL1L2", 320, 115, 320, 130, "miss");
+  const l2ToL3 = makeLink("linkL2L3", 320, 200, 320, 215, "miss");
+  const l3ToDram = makeLink("linkL3Dram", 380, 250, 520, 145, "dramAccess");
+  const dramToSsd = makeLink("linkDramSsd", 670, 135, 760, 135, "ssdAccess");
+
+  svg.append(
+    computeToL1.group,
+    l1ToL2.group,
+    l2ToL3.group,
+    l3ToDram.group,
+    dramToSsd.group
+  );
+
+  archLinks = {
+    l3ToDram,
+    dramToSsd
+  };
+}
+
+function updateArchitectureDiagram(metrics, params) {
+  if (!archLinks) return;
+
+  const dramRatio = clamp01(metrics.dramAccess / Math.max(params.weightBytes * 0.000005, 1));
+  const ssdRatio = clamp01(metrics.ssdAccess / Math.max(metrics.dramAccess, 1));
+
+  const updateLinkStyle = (entry, ratio) => {
+    const width = 2 + ratio * 10;
+    entry.line.style.strokeWidth = `${width}`;
+    entry.line.classList.toggle("arch-link--hot", ratio > 0.35);
+    entry.text.textContent = `${entry.text.textContent.split(" ")[0]} ${Math.round(ratio * 100)}%`;
+  };
+
+  archLinks.l3ToDram.text.textContent = "dramAccess";
+  archLinks.dramToSsd.text.textContent = "ssdAccess";
+  updateLinkStyle(archLinks.l3ToDram, dramRatio);
+  updateLinkStyle(archLinks.dramToSsd, ssdRatio);
+}
+
 function updateUI() {
   updateOutputs();
   const m = compute();
@@ -264,6 +394,10 @@ function updateUI() {
   updateFlowRows(m);
   updateCacheRows(m);
 
+  updateArchitectureDiagram(m, {
+    weightBytes: +inputs.modelSize.value * 1e9 * (+inputs.quantBits.value / 8)
+  });
+
   const narrative = [];
   if (m.l1Miss > 0.25) narrative.push("L1ミス率が高く、ワーキングセットがオンチップSRAMを超えています。");
   if (m.l3Miss > 0.3) narrative.push("L3を抜けてDRAMアクセスが増え、decode遅延が拡大しています。");
@@ -275,6 +409,7 @@ function updateUI() {
 
 initFlowRows();
 initCacheRows();
+initArchitectureDiagram();
 
 for (const id of ids) {
   inputs[id].addEventListener("input", updateUI);

@@ -13,6 +13,7 @@
   - ボトルネック判定（Cache/DRAM/SSD）
 - メモリ階層ごとの bytes/token フロー表示
 - L1-L3/SRAM/DRAM統計（hit/miss/待ち時間寄与）
+- Compute→L1/L2/L3→DRAM→SSD のアーキテクチャ図パネル（DRAM/SSDアクセス強度を線色・太さで反映）
 
 ## 起動
 
