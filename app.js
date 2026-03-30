@@ -22,7 +22,35 @@ const ui = {
   cacheStatsPanel: document.querySelector(".cache-stats"),
   focusPrev: document.getElementById("focusPrev"),
   focusNext: document.getElementById("focusNext"),
-  focusStepLabel: document.getElementById("focusStepLabel")
+  focusStepLabel: document.getElementById("focusStepLabel"),
+  hardwareProfile: document.getElementById("hardwareProfile")
+};
+
+const hardwareProfiles = {
+  entryCpu: {
+    l1Size: 64,
+    l2Size: 2,
+    l3Size: 24,
+    dramBw: 80,
+    ssdBw: 3,
+    offloadRate: 20
+  },
+  serverCpu: {
+    l1Size: 96,
+    l2Size: 4,
+    l3Size: 64,
+    dramBw: 220,
+    ssdBw: 8,
+    offloadRate: 10
+  },
+  gpuInferenceNode: {
+    l1Size: 128,
+    l2Size: 8,
+    l3Size: 96,
+    dramBw: 360,
+    ssdBw: 14,
+    offloadRate: 5
+  }
 };
 
 const flowRowDefs = [
@@ -494,6 +522,19 @@ function updateUI() {
   ui.narrative.textContent = narrative.join(" ");
 }
 
+function applyHardwareProfile(profileKey) {
+  const profile = hardwareProfiles[profileKey];
+  if (!profile) return;
+
+  for (const [key, value] of Object.entries(profile)) {
+    if (inputs[key]) {
+      inputs[key].value = String(value);
+    }
+  }
+
+  updateUI();
+}
+
 initFlowRows();
 initCacheRows();
 initArchitectureDiagram();
@@ -516,4 +557,12 @@ for (const id of ids) {
   inputs[id].addEventListener("input", updateUI);
 }
 
-updateUI();
+ui.hardwareProfile?.addEventListener("change", (event) => {
+  applyHardwareProfile(event.target.value);
+});
+
+if (ui.hardwareProfile?.value) {
+  applyHardwareProfile(ui.hardwareProfile.value);
+} else {
+  updateUI();
+}
