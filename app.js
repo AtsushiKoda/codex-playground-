@@ -15,6 +15,8 @@ const ui = {
   throughput: document.getElementById("throughput"),
   bottleneck: document.getElementById("bottleneck"),
   flowBars: document.getElementById("flowBars"),
+  latencyBreakdownBars: document.getElementById("latencyBreakdownBars"),
+  latencyWhyText: document.getElementById("latencyWhyText"),
   cacheTableBody: document.getElementById("cacheTableBody"),
   narrative: document.getElementById("narrative"),
   modelRationaleList: document.getElementById("modelRationaleList"),
@@ -106,6 +108,7 @@ const cacheRowDefs = [
 ];
 
 const flowRowNodes = [];
+const latencyBreakdownNodes = [];
 const cacheRowNodes = [];
 let archLinks = null;
 let scopeLevel = "macro";
@@ -226,6 +229,11 @@ function compute() {
   const dramTimeS = dramAccess / dramBw;
   const ssdTimeS = ssdAccess / ssdBw;
   const decodeLatencyMs = latencyNs / 1e6 + (dramTimeS + ssdTimeS) * 1000;
+  const l1WaitMs = (l1Access / 64 * l1LatNs) / 1e6;
+  const l2WaitMs = (l2Access / 64 * l2LatNs) / 1e6;
+  const l3WaitMs = (l3Access / 64 * l3LatNs) / 1e6;
+  const dramWaitMs = (dramAccess / 64 * dramLatNs) / 1e6 + dramTimeS * 1000;
+  const ssdWaitMs = (ssdAccess / 4096 * ssdLatNs) / 1e6 + ssdTimeS * 1000;
 
   const ttftMs = decodeLatencyMs * (4 + Math.log2(contextLen / 128 + 1));
   const tokensPerSec = 1000 / Math.max(0.1, decodeLatencyMs);
@@ -238,6 +246,7 @@ function compute() {
     l1Hit, l2Hit, l3Hit,
     l1Miss, l2Miss, l3Miss,
     l1Access, l2Access, l3Access, dramAccess, ssdAccess,
+    l1WaitMs, l2WaitMs, l3WaitMs, dramWaitMs, ssdWaitMs,
     ttftMs, decodeLatencyMs, tokensPerSec,
     dramUtil, ssdUtil
   };
@@ -317,6 +326,73 @@ function renderModelRationale(metrics) {
   fragment.append(wsDt, wsDd);
 
   ui.modelRationaleList.replaceChildren(fragment);
+}
+
+const latencyBreakdownDefs = [
+  { key: "l1WaitMs", label: "L1", className: "latency-chip--l1" },
+  { key: "l2WaitMs", label: "L2", className: "latency-chip--l2" },
+  { key: "l3WaitMs", label: "L3", className: "latency-chip--l3" },
+  { key: "dramWaitMs", label: "DRAM", className: "latency-chip--dram" },
+  { key: "ssdWaitMs", label: "SSD", className: "latency-chip--ssd" }
+];
+
+function initLatencyBreakdown() {
+  if (!ui.latencyBreakdownBars) return;
+  const fragment = document.createDocumentFragment();
+
+  for (const def of latencyBreakdownDefs) {
+    const row = document.createElement("div");
+    row.className = "latency-row";
+
+    const label = document.createElement("strong");
+    label.textContent = def.label;
+
+    const barWrap = document.createElement("div");
+    barWrap.className = "latency-row__bar-wrap";
+    const bar = document.createElement("div");
+    bar.className = `latency-row__bar ${def.className}`;
+    barWrap.appendChild(bar);
+
+    const value = document.createElement("span");
+    value.className = "latency-row__value";
+
+    row.append(label, barWrap, value);
+    latencyBreakdownNodes.push({ key: def.key, row, bar, value, label: def.label });
+    fragment.appendChild(row);
+  }
+
+  ui.latencyBreakdownBars.replaceChildren(fragment);
+}
+
+function updateLatencyBreakdown(metrics) {
+  if (!ui.latencyBreakdownBars || !ui.latencyWhyText) return;
+
+  const total = Math.max(metrics.decodeLatencyMs, 1e-9);
+  let topContributor = { label: "L1", valueMs: 0, ratio: 0 };
+
+  for (const node of latencyBreakdownNodes) {
+    const valueMs = metrics[node.key];
+    const ratio = clamp01(valueMs / total);
+    node.bar.style.width = `${Math.max(3, ratio * 100)}%`;
+    node.value.textContent = `${valueMs.toFixed(3)} ms (${(ratio * 100).toFixed(1)}%)`;
+
+    if (valueMs > topContributor.valueMs) {
+      topContributor = { label: node.label, valueMs, ratio };
+    }
+  }
+
+  const reasons = [];
+  if (metrics.l3Miss > 0.3) {
+    reasons.push(`L3 miss率 ${(metrics.l3Miss * 100).toFixed(1)}% が高くDRAM遷移が増加`);
+  }
+  if (metrics.ssdWaitMs > metrics.decodeLatencyMs * 0.2) {
+    reasons.push(`SSD待ちが ${(metrics.ssdWaitMs / metrics.decodeLatencyMs * 100).toFixed(1)}% を占有`);
+  }
+  if (reasons.length === 0) {
+    reasons.push("オンチップ（L1/L2/L3）再利用が効いて下位メモリ依存は限定的");
+  }
+
+  ui.latencyWhyText.textContent = `主因: ${topContributor.label} が ${(topContributor.ratio * 100).toFixed(1)}%。理由: ${reasons.join(" / ")}。`;
 }
 
 function createFlowRow(label) {
@@ -568,6 +644,7 @@ function updateUI() {
 
   updateFlowRows(m, scope, focusedKey);
   updateCacheRows(m, scope, focusedKey);
+  updateLatencyBreakdown(m);
 
   updateArchitectureDiagram(m, {
     weightBytes: +inputs.modelSize.value * 1e9 * (+inputs.quantBits.value / 8)
@@ -598,6 +675,7 @@ function applyHardwareProfile(profileKey) {
 
 initFlowRows();
 initCacheRows();
+initLatencyBreakdown();
 initArchitectureDiagram();
 
 for (const button of ui.scopeButtons) {

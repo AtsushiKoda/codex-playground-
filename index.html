@@ -111,6 +111,15 @@
         <div id="flowBars"></div>
       </section>
 
+      <section class="panel latency-breakdown">
+        <h2>decode遅延の因果分解 (why)</h2>
+        <p class="latency-breakdown__intro">
+          decode latency / token を、L1/L2/L3/DRAM/SSD の待ち時間寄与へ分解して表示します。
+        </p>
+        <div id="latencyBreakdownBars"></div>
+        <p id="latencyWhyText" class="latency-breakdown__why"></p>
+      </section>
+
       <section class="panel cache-stats">
         <h2>L1-L3 / SRAM / DRAM 統計</h2>
         <table>
