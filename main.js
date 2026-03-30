@@ -7,6 +7,7 @@ import {
   getScopeSteps,
   getWeightBytes,
   hardwareProfiles,
+  modelCoefficients,
   scopeConfig,
   stepLabels
 } from "./model.js";
@@ -82,7 +83,7 @@ function renderModelRationale(metrics) {
     {
       title: "bytesPerToken",
       explanation: "1トークンを生成する際に触る総データ量（重みストリーミング + KV参照 + 活性）です。",
-      formula: "(weightBytes×0.0000022) + (kvBytesPerToken×contextLen×0.03) + activationBytesPerToken",
+      formula: "(weightBytes×modelCoefficients.weightStreamingFactor) + (kvBytesPerToken×contextLen×modelCoefficients.kvRefFactor) + activationBytesPerToken",
       value: fmtBytes(metrics.bytesPerToken)
     },
     {
@@ -100,7 +101,7 @@ function renderModelRationale(metrics) {
     {
       title: "ttftMs",
       explanation: "初回トークン生成はデコード数ステップ分の準備が必要という仮定で、decode latencyに文脈長依存の係数を掛けます。",
-      formula: "decodeLatencyMs × (4 + log2(contextLen/128 + 1))",
+      formula: "decodeLatencyMs × (modelCoefficients.ttftBaseSteps + log2(contextLen/modelCoefficients.ttftContextNorm + 1))",
       value: fmtMs(metrics.ttftMs)
     }
   ];
