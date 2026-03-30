@@ -19,7 +19,7 @@ export function createCacheRenderer({ tbody, cacheRowDefs }) {
   }
   tbody.replaceChildren(fragment);
 
-  function update({ metrics, labelsToShow, focusedKey }) {
+  function render({ metrics, labelsToShow, focusedKey }) {
     for (const node of rows) {
       const isVisible = labelsToShow.has(node.label);
       node.tr.hidden = !isVisible;
@@ -38,5 +38,5 @@ export function createCacheRenderer({ tbody, cacheRowDefs }) {
     }
   }
 
-  return { update };
+  return { render };
 }

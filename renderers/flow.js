@@ -25,7 +25,7 @@ export function createFlowRenderer({ container, flowRowDefs }) {
   }
   container.replaceChildren(fragment);
 
-  function update({ metrics, keysToShow, focusedKey }) {
+  function render({ metrics, keysToShow, focusedKey }) {
     const maxV = Math.max(
       ...flowRowDefs.filter((def) => keysToShow.has(def.key)).map((def) => metrics[def.key]),
       1
@@ -43,5 +43,5 @@ export function createFlowRenderer({ container, flowRowDefs }) {
     }
   }
 
-  return { update };
+  return { render };
 }

@@ -85,7 +85,7 @@ export function createInferencePipelineRenderer({ svg }) {
     }
   });
 
-  function update({ focusedKey, scope }) {
+  function render({ focusedKey, scope }) {
     for (const step of STEPS) {
       stepNodes[step.key]?.classList.toggle("is-focused", step.key === focusedKey);
     }
@@ -96,5 +96,5 @@ export function createInferencePipelineRenderer({ svg }) {
     }
   }
 
-  return { update };
+  return { render };
 }
