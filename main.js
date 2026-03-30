@@ -32,7 +32,11 @@ const ui = {
   focusStepLabel: document.getElementById("focusStepLabel"),
   hardwareProfile: document.getElementById("hardwareProfile"),
   scopeButtons: Array.from(document.querySelectorAll(".scope-btn")),
-  cacheStatsPanel: document.querySelector(".cache-stats")
+  cacheStatsPanel: document.querySelector(".cache-stats"),
+  archTabs: Array.from(document.querySelectorAll(".arch-tab")),
+  archPanels: Array.from(document.querySelectorAll(".arch-tab-panel")),
+  archControlsToggle: document.getElementById("archControlsToggle"),
+  archControlsPanel: document.getElementById("archControlsPanel")
 };
 
 const flowRenderer = createFlowRenderer({ container: document.getElementById("flowBars"), flowRowDefs });
@@ -47,6 +51,28 @@ const state = {
   scope: "macro",
   focusStepIndex: 0
 };
+
+
+function setActiveControlTab(tabKey) {
+  for (const tab of ui.archTabs) {
+    const isActive = tab.dataset.tab === tabKey;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  }
+
+  for (const panel of ui.archPanels) {
+    const isActive = panel.dataset.panel === tabKey;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  }
+}
+
+function toggleArchControls(forceOpen) {
+  if (!ui.archControlsPanel || !ui.archControlsToggle) return;
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !ui.archControlsPanel.classList.contains("is-open");
+  ui.archControlsPanel.classList.toggle("is-open", nextOpen);
+  ui.archControlsToggle.setAttribute("aria-expanded", String(nextOpen));
+}
 
 function readParams() {
   return {
@@ -205,3 +231,22 @@ if (ui.hardwareProfile?.value) {
 } else {
   updateUI();
 }
+
+
+for (const tab of ui.archTabs) {
+  tab.addEventListener("click", () => {
+    setActiveControlTab(tab.dataset.tab || "workload");
+  });
+}
+
+ui.archControlsToggle?.addEventListener("click", () => {
+  toggleArchControls();
+});
+
+if (window.matchMedia("(max-width: 860px)").matches) {
+  toggleArchControls(false);
+} else {
+  toggleArchControls(true);
+}
+
+setActiveControlTab("workload");
