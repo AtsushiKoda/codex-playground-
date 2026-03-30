@@ -39,19 +39,19 @@ export function createInferencePipelineRenderer({ svg }) {
   const stepNodes = {};
   const links = [];
 
-  const startX = 30;
-  const y = 72;
-  const width = 155;
-  const height = 96;
-  const gap = 28;
+  const width = 520;
+  const height = 78;
+  const gap = 22;
+  const x = 100;
+  const startY = 28;
 
   STEPS.forEach((step, index) => {
-    const x = startX + index * (width + gap);
+    const y = startY + index * (height + gap);
     const group = createSvgEl("g", { class: "inf-node-group" });
     const rect = createSvgEl("rect", { x, y, width, height, rx: 14, ry: 14, class: "inf-node" });
     const title = createSvgEl("text", {
       x: x + width / 2,
-      y: y + 38,
+      y: y + 33,
       class: "inf-node-title",
       "text-anchor": "middle"
     });
@@ -59,7 +59,7 @@ export function createInferencePipelineRenderer({ svg }) {
 
     const detail = createSvgEl("text", {
       x: x + width / 2,
-      y: y + 60,
+      y: y + 53,
       class: "inf-node-detail",
       "text-anchor": "middle"
     });
@@ -70,13 +70,13 @@ export function createInferencePipelineRenderer({ svg }) {
     stepNodes[step.key] = group;
 
     if (index < STEPS.length - 1) {
-      const x1 = x + width;
-      const x2 = x + width + gap - 8;
+      const x1 = x + width / 2;
+      const x2 = x + width / 2;
       const line = createSvgEl("line", {
         x1,
-        y1: y + height / 2,
+        y1: y + height,
         x2,
-        y2: y + height / 2,
+        y2: y + height + gap - 8,
         class: "inf-link",
         "marker-end": "url(#inferenceArrow)"
       });

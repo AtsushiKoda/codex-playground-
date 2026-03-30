@@ -13,10 +13,10 @@ const THEME_LAYOUTS = {
     shells: [
       {
         key: "device",
-        x: 30,
-        y: 24,
-        w: 890,
-        h: 270,
+        x: 36,
+        y: 20,
+        w: 648,
+        h: 582,
         rx: 24,
         label: "CPU Server Chassis",
         detail: "Compute board + DIMM slots",
@@ -25,10 +25,10 @@ const THEME_LAYOUTS = {
       },
       {
         key: "board",
-        x: 48,
-        y: 56,
-        w: 540,
-        h: 206,
+        x: 72,
+        y: 68,
+        w: 576,
+        h: 314,
         rx: 16,
         label: "Motherboard",
         style: { fill: "#0b2036", stroke: "#2d5f8c", opacity: "0.9" },
@@ -36,9 +36,9 @@ const THEME_LAYOUTS = {
       },
       {
         key: "dramModule",
-        x: 508,
-        y: 72,
-        w: 184,
+        x: 252,
+        y: 392,
+        w: 216,
         h: 126,
         rx: 14,
         label: "DIMM Module",
@@ -48,29 +48,29 @@ const THEME_LAYOUTS = {
       }
     ],
     internalNodes: {
-      compute: { x: 96, y: 116, w: 140, h: 90, label: "Compute", detail: "Core / Tensor" },
-      l1: { x: 276, y: 52, w: 120, h: 70, label: "L1" },
-      l2: { x: 276, y: 137, w: 120, h: 70, label: "L2" },
-      l3: { x: 276, y: 222, w: 120, h: 70, label: "L3" },
-      dram: { x: 520, y: 90, w: 150, h: 90, label: "DRAM" },
-      ssd: { x: 760, y: 90, w: 140, h: 90, label: "SSD" }
+      compute: { x: 244, y: 98, w: 232, h: 72, label: "Compute", detail: "Core / Tensor" },
+      l1: { x: 272, y: 188, w: 176, h: 58, label: "L1" },
+      l2: { x: 272, y: 264, w: 176, h: 58, label: "L2" },
+      l3: { x: 272, y: 340, w: 176, h: 58, label: "L3" },
+      dram: { x: 260, y: 428, w: 200, h: 62, label: "DRAM" },
+      ssd: { x: 260, y: 506, w: 200, h: 62, label: "SSD" }
     },
     busLinks: {
-      computeToL1: { from: [236, 141], to: [276, 87], label: "on-chip" },
-      l1ToL2: { from: [336, 122], to: [336, 137], label: "miss" },
-      l2ToL3: { from: [336, 207], to: [336, 222], label: "miss" },
-      l3ToDram: { from: [396, 257], to: [520, 145], label: "dramAccess" },
-      dramToSsd: { from: [670, 135], to: [760, 135], label: "ssdAccess" }
+      computeToL1: { from: [360, 170], to: [360, 188], label: "on-chip" },
+      l1ToL2: { from: [360, 246], to: [360, 264], label: "miss" },
+      l2ToL3: { from: [360, 322], to: [360, 340], label: "miss" },
+      l3ToDram: { from: [360, 398], to: [360, 428], label: "dramAccess" },
+      dramToSsd: { from: [360, 490], to: [360, 506], label: "ssdAccess" }
     }
   },
   gpuNode: {
     shells: [
       {
         key: "device",
-        x: 30,
-        y: 24,
-        w: 890,
-        h: 270,
+        x: 36,
+        y: 20,
+        w: 648,
+        h: 582,
         rx: 24,
         label: "GPU Inference Node",
         detail: "GPU board + HBM package",
@@ -79,10 +79,10 @@ const THEME_LAYOUTS = {
       },
       {
         key: "board",
-        x: 60,
-        y: 64,
-        w: 590,
-        h: 188,
+        x: 72,
+        y: 68,
+        w: 576,
+        h: 314,
         rx: 16,
         label: "GPU Baseboard",
         style: { fill: "#0f2332", stroke: "#2f6d90", opacity: "0.9" },
@@ -90,10 +90,10 @@ const THEME_LAYOUTS = {
       },
       {
         key: "dramModule",
-        x: 488,
-        y: 84,
-        w: 214,
-        h: 116,
+        x: 244,
+        y: 392,
+        w: 232,
+        h: 126,
         rx: 14,
         label: "HBM Stack",
         detail: "High-bandwidth DRAM",
@@ -102,19 +102,19 @@ const THEME_LAYOUTS = {
       }
     ],
     internalNodes: {
-      compute: { x: 126, y: 116, w: 180, h: 90, label: "Compute", detail: "SM / Tensor" },
-      l1: { x: 334, y: 52, w: 122, h: 70, label: "L1" },
-      l2: { x: 334, y: 137, w: 122, h: 70, label: "L2" },
-      l3: { x: 334, y: 222, w: 122, h: 70, label: "L3" },
-      dram: { x: 548, y: 90, w: 152, h: 90, label: "DRAM" },
-      ssd: { x: 760, y: 90, w: 140, h: 90, label: "SSD" }
+      compute: { x: 244, y: 98, w: 232, h: 72, label: "Compute", detail: "SM / Tensor" },
+      l1: { x: 272, y: 188, w: 176, h: 58, label: "L1" },
+      l2: { x: 272, y: 264, w: 176, h: 58, label: "L2" },
+      l3: { x: 272, y: 340, w: 176, h: 58, label: "L3" },
+      dram: { x: 260, y: 428, w: 200, h: 62, label: "DRAM" },
+      ssd: { x: 260, y: 506, w: 200, h: 62, label: "SSD" }
     },
     busLinks: {
-      computeToL1: { from: [306, 141], to: [334, 87], label: "on-chip" },
-      l1ToL2: { from: [395, 122], to: [395, 137], label: "miss" },
-      l2ToL3: { from: [395, 207], to: [395, 222], label: "miss" },
-      l3ToDram: { from: [456, 257], to: [548, 145], label: "dramAccess" },
-      dramToSsd: { from: [700, 135], to: [760, 135], label: "ssdAccess" }
+      computeToL1: { from: [360, 170], to: [360, 188], label: "on-chip" },
+      l1ToL2: { from: [360, 246], to: [360, 264], label: "miss" },
+      l2ToL3: { from: [360, 322], to: [360, 340], label: "miss" },
+      l3ToDram: { from: [360, 398], to: [360, 428], label: "dramAccess" },
+      dramToSsd: { from: [360, 490], to: [360, 506], label: "ssdAccess" }
     }
   }
 };
@@ -192,6 +192,7 @@ function makeInternalNode(spec) {
 function makeBusLink(id, spec) {
   const [x1, y1] = spec.from;
   const [x2, y2] = spec.to;
+  const isVertical = Math.abs(x1 - x2) < 14;
   const group = createSvgEl("g", { class: "arch-link-group" });
   const line = createSvgEl("line", {
     id,
@@ -204,9 +205,9 @@ function makeBusLink(id, spec) {
   });
   const text = createSvgEl("text", {
     class: "arch-link-label",
-    x: (x1 + x2) / 2,
-    y: (y1 + y2) / 2 - 8,
-    "text-anchor": "middle"
+    x: isVertical ? x1 + 42 : (x1 + x2) / 2,
+    y: isVertical ? (y1 + y2) / 2 + 4 : (y1 + y2) / 2 - 8,
+    "text-anchor": isVertical ? "start" : "middle"
   });
   text.textContent = spec.label;
   group.append(line, text);
