@@ -9,13 +9,15 @@ import {
   hardwareProfiles,
   modelCoefficients,
   scopeConfig,
-  stepLabels
+  stepLabels,
+  getStepLabel
 } from "./model.js";
 import { fmtBytes, fmtMs, fmtSec, formatControlOutput, pct } from "./format.js";
 import { createFlowRenderer } from "./renderers/flow.js";
 import { createCacheRenderer } from "./renderers/cache.js";
 import { createLatencyRenderer } from "./renderers/latency.js";
 import { createArchitectureRenderer } from "./renderers/architecture.js";
+import { createInferencePipelineRenderer } from "./renderers/inferencePipeline.js";
 
 const inputs = Object.fromEntries(INPUT_IDS.map((id) => [id, document.getElementById(id)]));
 const outputs = Object.fromEntries(INPUT_IDS.map((id) => [id, document.getElementById(`${id}Out`)]));
@@ -30,6 +32,7 @@ const ui = {
   focusPrev: document.getElementById("focusPrev"),
   focusNext: document.getElementById("focusNext"),
   focusStepLabel: document.getElementById("focusStepLabel"),
+  compareMeaning: document.getElementById("compareMeaning"),
   hardwareProfile: document.getElementById("hardwareProfile"),
   scopeButtons: Array.from(document.querySelectorAll(".scope-btn")),
   cacheStatsPanel: document.querySelector(".cache-stats"),
@@ -46,6 +49,7 @@ const latencyRenderer = createLatencyRenderer({
   whyText: document.getElementById("latencyWhyText")
 });
 const architectureRenderer = createArchitectureRenderer({ svg: document.getElementById("archDiagram") });
+const inferencePipelineRenderer = createInferencePipelineRenderer({ svg: document.getElementById("inferenceDiagram") });
 
 const state = {
   scope: "macro",
@@ -173,11 +177,17 @@ function updateUI() {
   ui.throughput.textContent = `${metrics.tokensPerSec.toFixed(1)} tokens/s`;
   ui.bottleneck.textContent = bottleneckLabel(metrics);
   ui.cacheStatsPanel.hidden = !scopeConfig[activeScope].showCachePanel;
-  ui.focusStepLabel.textContent = focused.key ? stepLabels[focused.key] : "フォーカスなし";
+  ui.focusStepLabel.textContent = focused.key ? getStepLabel(focused.key) : "フォーカスなし";
+  if (ui.compareMeaning) {
+    ui.compareMeaning.textContent = focused.key
+      ? `${stepLabels[focused.key].inference} ↔ ${stepLabels[focused.key].hardware}: ${stepLabels[focused.key].meaning}`
+      : "ステップを選択すると、推論計算とハードウェアイベントの対応を表示します。";
+  }
 
   flowRenderer.update({ metrics, keysToShow: scopeConfig[activeScope].flowKeys, focusedKey: focused.key });
   cacheRenderer.update({ metrics, labelsToShow: scopeConfig[activeScope].cacheLabels, focusedKey: focused.key });
   latencyRenderer.update(metrics);
+  inferencePipelineRenderer.update({ focusedKey: focused.key, scope: activeScope });
   architectureRenderer.update({
     metrics,
     weightBytes: getWeightBytes(params),

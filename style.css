@@ -142,6 +142,75 @@ output {
   overflow: hidden;
 }
 
+.compare-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.compare-pane {
+  position: relative;
+  background: #0d172a;
+  border: 1px solid #2c4167;
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.compare-meaning {
+  color: #c8dbfb;
+  margin-bottom: 0.55rem;
+}
+
+#inferenceDiagram {
+  width: 100%;
+  height: auto;
+  min-height: 180px;
+  background: radial-gradient(circle at 20% 20%, #1e2945 0%, #0c1628 75%);
+  border-radius: 10px;
+  border: 1px solid #2c4167;
+}
+
+.inf-node {
+  fill: #1a2848;
+  stroke: #5076b0;
+  stroke-width: 1.5;
+  transition: fill 160ms ease, stroke 160ms ease;
+}
+
+.inf-node-title {
+  fill: #e8efff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.inf-node-detail {
+  fill: #a5bfeb;
+  font-size: 12px;
+}
+
+.inf-node-group.is-focused .inf-node {
+  fill: #213763;
+  stroke: #ff9464;
+  stroke-width: 2.2;
+}
+
+.inf-link {
+  stroke: #6aaefb;
+  color: #6aaefb;
+  stroke-width: 3;
+  opacity: 0.85;
+  transition: stroke-width 160ms ease, opacity 160ms ease;
+}
+
+.inf-link.is-meso {
+  stroke-width: 3.5;
+}
+
+.inf-link.is-micro {
+  stroke-width: 4.5;
+  opacity: 1;
+}
+
 #archDiagram {
   width: 100%;
   height: auto;
@@ -400,6 +469,10 @@ th, td {
 }
 
 @media (max-width: 860px) {
+  .compare-stage {
+    grid-template-columns: 1fr;
+  }
+
   .architecture-map {
     padding-bottom: 0.8rem;
   }
