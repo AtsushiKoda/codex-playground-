@@ -3,14 +3,28 @@ export const INPUT_IDS = [
   "l1Size", "l2Size", "l3Size", "dramBw", "ssdBw", "offloadRate"
 ];
 
+export const modelCoefficients = {
+  // bytesPerToken の重みストリーミング項: weightBytes × weightStreamingFactor
+  weightStreamingFactor: 0.0000022,
+  // bytesPerToken のKV参照項: kvBytesPerToken × contextLen × kvRefFactor
+  kvRefFactor: 0.03,
+  // bytesPerToken の活性項: activationBytesPerToken = modelB × activationFactor × (bits/8)
+  activationFactor: 0.00008,
+  // KVキャッシュの1tokenあたり基礎量: kvBytesPerToken = modelB × kvBytesFactor × (bits/8)
+  kvBytesFactor: 0.00045,
+  // workingSet へのKV寄与の減衰係数: activation + kvWorkingSet × kvWorkingSetFactor
+  kvWorkingSetFactor: 0.02,
+  // DRAM基礎トラフィック項: dramAccess += bytesPerToken × dramBaseFactor
+  dramBaseFactor: 0.15,
+  weightOffloadFactor: 0.000001,
+  l1AccessMultiplier: 1.5,
+  cacheLineBytes: 64,
+  ssdPageBytes: 4096,
+  ttftBaseSteps: 4,
+  ttftContextNorm: 128
+};
+
 export const COEFFICIENTS = {
-  kvPerToken: 0.00045,
-  activationPerToken: 0.00008,
-  bytesPerTokenWeightFactor: 0.0000022,
-  bytesPerTokenKvFactor: 0.03,
-  workingSetKvFactor: 0.02,
-  dramBaseTrafficFactor: 0.15,
-  ssdOffloadFactor: 0.000001,
   l1HitBase: 0.95,
   l2HitBase: 0.92,
   l3HitBase: 0.9,
@@ -142,10 +156,10 @@ export function compute(params) {
   const offload = params.offloadRate / 100;
 
   const weightBytes = getWeightBytes(params);
-  const kvBytesPerToken = modelB * COEFFICIENTS.kvPerToken * (bits / 8);
+  const kvBytesPerToken = modelB * modelCoefficients.kvBytesFactor * (bits / 8);
   const kvWorkingSet = kvBytesPerToken * contextLen * batch;
-  const activationBytesPerToken = modelB * COEFFICIENTS.activationPerToken * (bits / 8);
-  const workingSet = (activationBytesPerToken + kvWorkingSet * COEFFICIENTS.workingSetKvFactor) * 1e9;
+  const activationBytesPerToken = modelB * modelCoefficients.activationFactor * (bits / 8);
+  const workingSet = (activationBytesPerToken + kvWorkingSet * modelCoefficients.kvWorkingSetFactor) * 1e9;
 
   const l1Hit = clamp01(COEFFICIENTS.l1HitBase - Math.log2(1 + workingSet / l1Bytes) * COEFFICIENTS.l1HitSlope);
   const l2Hit = clamp01(COEFFICIENTS.l2HitBase - Math.log2(1 + workingSet / l2Bytes) * COEFFICIENTS.l2HitSlope);
@@ -156,34 +170,34 @@ export function compute(params) {
   const l3Miss = l2Miss * (1 - l3Hit);
 
   const bytesPerToken =
-    (weightBytes * COEFFICIENTS.bytesPerTokenWeightFactor) +
-    (kvBytesPerToken * contextLen * COEFFICIENTS.bytesPerTokenKvFactor) +
+    (weightBytes * modelCoefficients.weightStreamingFactor) +
+    (kvBytesPerToken * contextLen * modelCoefficients.kvRefFactor) +
     activationBytesPerToken;
 
-  const l1Access = bytesPerToken * 1.5;
+  const l1Access = bytesPerToken * modelCoefficients.l1AccessMultiplier;
   const l2Access = l1Access * l1Miss;
   const l3Access = l2Access * (1 - l2Hit);
-  const dramAccess = l3Access * (1 - l3Hit) + bytesPerToken * COEFFICIENTS.dramBaseTrafficFactor;
-  const ssdAccess = weightBytes * offload * COEFFICIENTS.ssdOffloadFactor;
+  const dramAccess = l3Access * (1 - l3Hit) + bytesPerToken * modelCoefficients.dramBaseFactor;
+  const ssdAccess = weightBytes * offload * modelCoefficients.weightOffloadFactor;
 
   const latencyNs =
-    l1Access / 64 * COEFFICIENTS.l1LatencyNs +
-    l2Access / 64 * COEFFICIENTS.l2LatencyNs +
-    l3Access / 64 * COEFFICIENTS.l3LatencyNs +
-    dramAccess / 64 * COEFFICIENTS.dramLatencyNs +
-    ssdAccess / 4096 * COEFFICIENTS.ssdLatencyNs;
+    l1Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l1LatencyNs +
+    l2Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l2LatencyNs +
+    l3Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l3LatencyNs +
+    dramAccess / modelCoefficients.cacheLineBytes * COEFFICIENTS.dramLatencyNs +
+    ssdAccess / modelCoefficients.ssdPageBytes * COEFFICIENTS.ssdLatencyNs;
 
   const dramTimeS = dramAccess / dramBw;
   const ssdTimeS = ssdAccess / ssdBw;
   const decodeLatencyMs = latencyNs / 1e6 + (dramTimeS + ssdTimeS) * 1000;
 
-  const l1WaitMs = (l1Access / 64 * COEFFICIENTS.l1LatencyNs) / 1e6;
-  const l2WaitMs = (l2Access / 64 * COEFFICIENTS.l2LatencyNs) / 1e6;
-  const l3WaitMs = (l3Access / 64 * COEFFICIENTS.l3LatencyNs) / 1e6;
-  const dramWaitMs = (dramAccess / 64 * COEFFICIENTS.dramLatencyNs) / 1e6 + dramTimeS * 1000;
-  const ssdWaitMs = (ssdAccess / 4096 * COEFFICIENTS.ssdLatencyNs) / 1e6 + ssdTimeS * 1000;
+  const l1WaitMs = (l1Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l1LatencyNs) / 1e6;
+  const l2WaitMs = (l2Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l2LatencyNs) / 1e6;
+  const l3WaitMs = (l3Access / modelCoefficients.cacheLineBytes * COEFFICIENTS.l3LatencyNs) / 1e6;
+  const dramWaitMs = (dramAccess / modelCoefficients.cacheLineBytes * COEFFICIENTS.dramLatencyNs) / 1e6 + dramTimeS * 1000;
+  const ssdWaitMs = (ssdAccess / modelCoefficients.ssdPageBytes * COEFFICIENTS.ssdLatencyNs) / 1e6 + ssdTimeS * 1000;
 
-  const ttftMs = decodeLatencyMs * (4 + Math.log2(contextLen / 128 + 1));
+  const ttftMs = decodeLatencyMs * (modelCoefficients.ttftBaseSteps + Math.log2(contextLen / modelCoefficients.ttftContextNorm + 1));
   const tokensPerSec = 1000 / Math.max(0.1, decodeLatencyMs);
 
   const dramUtil = clamp01((dramAccess / Math.max(1, decodeLatencyMs / 1000)) / dramBw);
