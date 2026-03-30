@@ -178,7 +178,12 @@ function updateUI() {
   flowRenderer.update({ metrics, keysToShow: scopeConfig[activeScope].flowKeys, focusedKey: focused.key });
   cacheRenderer.update({ metrics, labelsToShow: scopeConfig[activeScope].cacheLabels, focusedKey: focused.key });
   latencyRenderer.update(metrics);
-  architectureRenderer.update({ metrics, weightBytes: getWeightBytes(params), focusedKey: focused.key });
+  architectureRenderer.update({
+    metrics,
+    weightBytes: getWeightBytes(params),
+    focusedKey: focused.key,
+    hardwareProfileKey: ui.hardwareProfile?.value
+  });
 
   updateNarrative(metrics);
   renderModelRationale(metrics);
