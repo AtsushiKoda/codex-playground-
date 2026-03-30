@@ -28,6 +28,31 @@ python3 -m http.server 8000
 
 または `index.html` を直接ブラウザで開いても動作します。
 
+### より簡単に起動する方法
+
+リポジトリ直下の `serve.sh` を使うと、ワンコマンドでローカルサーバを起動できます。
+
+```bash
+./serve.sh
+# 既定: http://localhost:8000
+```
+
+ポートを変更したい場合:
+
+```bash
+PORT=9000 ./serve.sh
+```
+
+### 配布しやすくする方法（Docker）
+
+`Dockerfile` を同梱しているため、実行環境差分を減らして配布できます。
+
+```bash
+docker build -t llm-arch-viz .
+docker run --rm -p 8000:8000 llm-arch-viz
+# http://localhost:8000
+```
+
 ## 注意
 
 ### ハードウェアプロファイルの想定用途
