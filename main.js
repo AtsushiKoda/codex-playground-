@@ -1,23 +1,14 @@
-import {
-  INPUT_IDS,
-  cacheRowDefs,
-  compute,
-  flowRowDefs,
-  getFocusedKey,
-  getScopeSteps,
-  getWeightBytes,
-  hardwareProfiles,
-  modelCoefficients,
-  scopeConfig,
-  stepLabels,
-  getStepLabel
-} from "./model.js";
-import { fmtBytes, fmtMs, fmtSec, formatControlOutput, pct } from "./format.js";
+import { INPUT_IDS, cacheRowDefs, flowRowDefs } from "./model.js";
+import { formatControlOutput } from "./format.js";
 import { createFlowRenderer } from "./renderers/flow.js";
 import { createCacheRenderer } from "./renderers/cache.js";
 import { createLatencyRenderer } from "./renderers/latency.js";
 import { createArchitectureRenderer } from "./renderers/architecture.js";
 import { createInferencePipelineRenderer } from "./renderers/inferencePipeline.js";
+import { createInsightPanelRenderer } from "./renderers/insightPanel.js";
+import { createStore } from "./state/store.js";
+import { selectComputedState } from "./state/selectors.js";
+import { createUIController } from "./controllers/uiController.js";
 
 const inputs = Object.fromEntries(INPUT_IDS.map((id) => [id, document.getElementById(id)]));
 const outputs = Object.fromEntries(INPUT_IDS.map((id) => [id, document.getElementById(`${id}Out`)]));
@@ -50,12 +41,9 @@ const latencyRenderer = createLatencyRenderer({
 });
 const architectureRenderer = createArchitectureRenderer({ svg: document.getElementById("archDiagram") });
 const inferencePipelineRenderer = createInferencePipelineRenderer({ svg: document.getElementById("inferenceDiagram") });
+const insightPanelRenderer = createInsightPanelRenderer({ narrative: ui.narrative, modelRationaleList: ui.modelRationaleList });
 
-const state = {
-  scope: "macro",
-  focusStepIndex: 0
-};
-
+const store = createStore({ inputs });
 
 function setActiveControlTab(tabKey) {
   for (const tab of ui.archTabs) {
@@ -78,190 +66,43 @@ function toggleArchControls(forceOpen) {
   ui.archControlsToggle.setAttribute("aria-expanded", String(nextOpen));
 }
 
-function readParams() {
-  return {
-    modelSize: Number(inputs.modelSize.value),
-    contextLen: Number(inputs.contextLen.value),
-    batchSize: Number(inputs.batchSize.value),
-    quantBits: Number(inputs.quantBits.value),
-    l1Size: Number(inputs.l1Size.value),
-    l2Size: Number(inputs.l2Size.value),
-    l3Size: Number(inputs.l3Size.value),
-    dramBw: Number(inputs.dramBw.value),
-    ssdBw: Number(inputs.ssdBw.value),
-    offloadRate: Number(inputs.offloadRate.value)
-  };
-}
-
-function updateOutputs() {
-  for (const id of INPUT_IDS) {
-    outputs[id].textContent = formatControlOutput(id, inputs[id].value);
-  }
-}
-
-function bottleneckLabel(m) {
-  if (m.ssdAccess > m.dramAccess * 0.35 || m.ssdUtil > 0.75) return "I/O-bound (SSD)";
-  if (m.dramUtil > 0.7 || m.l3Miss > 0.35) return "Memory-bound (DRAM)";
-  if (m.l2Miss > 0.4) return "Cache-thrashing (L2/L3)";
-  return "Compute寄り (on-chip SRAM活用)";
-}
-
-function renderModelRationale(metrics) {
-  if (!ui.modelRationaleList) return;
-
-  const items = [
-    {
-      title: "bytesPerToken",
-      explanation: "1トークンを生成する際に触る総データ量（重みストリーミング + KV参照 + 活性）です。",
-      formula: "(weightBytes×modelCoefficients.weightStreamingFactor) + (kvBytesPerToken×contextLen×modelCoefficients.kvRefFactor) + activationBytesPerToken",
-      value: fmtBytes(metrics.bytesPerToken)
-    },
-    {
-      title: "l1/l2/l3 hit",
-      explanation: "ワーキングセットが各キャッシュ容量をどれだけ超えるかで、段階的にヒット率が下がる簡略モデルです。",
-      formula: "lXHit = clamp01(base - log2(1 + workingSet/lXBytes)×係数)",
-      value: `L1 ${pct(metrics.l1Hit)} / L2 ${pct(metrics.l2Hit)} / L3 ${pct(metrics.l3Hit)}`
-    },
-    {
-      title: "decodeLatencyMs",
-      explanation: "キャッシュ〜SSDの待ち時間近似と、DRAM/SSD転送時間を合算した1 tokenあたり遅延です。",
-      formula: "latencyNs/1e6 + (dramTimeS + ssdTimeS)×1000",
-      value: `${fmtMs(metrics.decodeLatencyMs)} (DRAM ${fmtSec(metrics.dramTimeS)}, SSD ${fmtSec(metrics.ssdTimeS)})`
-    },
-    {
-      title: "ttftMs",
-      explanation: "初回トークン生成はデコード数ステップ分の準備が必要という仮定で、decode latencyに文脈長依存の係数を掛けます。",
-      formula: "decodeLatencyMs × (modelCoefficients.ttftBaseSteps + log2(contextLen/modelCoefficients.ttftContextNorm + 1))",
-      value: fmtMs(metrics.ttftMs)
-    }
-  ];
-
-  const fragment = document.createDocumentFragment();
-  for (const item of items) {
-    const dt = document.createElement("dt");
-    dt.innerHTML = `<code>${item.title}</code>`;
-    const dd = document.createElement("dd");
-    dd.innerHTML = `${item.explanation} <span class="formula">式: <code>${item.formula}</code></span> <span class="current-value">現在値: ${item.value}</span>`;
-    fragment.append(dt, dd);
+function renderView(state) {
+  const computed = selectComputedState(state);
+  if (computed.focused.focusIndex !== state.focusStepIndex) {
+    store.setState((prev) => ({ ...prev, focusStepIndex: computed.focused.focusIndex }));
+    return;
   }
 
-  const wsDt = document.createElement("dt");
-  wsDt.innerHTML = "<code>workingSet</code>";
-  const wsDd = document.createElement("dd");
-  wsDd.innerHTML = `hit率推定に使う作業集合の近似です。 <span class="current-value">現在値: ${fmtBytes(metrics.workingSet)}（KV作業集合 ${fmtBytes(metrics.kvWorkingSet)}）</span>`;
-  fragment.append(wsDt, wsDd);
+  ui.ttft.textContent = `${computed.metrics.ttftMs.toFixed(1)} ms`;
+  ui.decodeLatency.textContent = `${computed.metrics.decodeLatencyMs.toFixed(2)} ms/token`;
+  ui.throughput.textContent = `${computed.metrics.tokensPerSec.toFixed(1)} tokens/s`;
+  ui.bottleneck.textContent = computed.bottleneck;
+  ui.cacheStatsPanel.hidden = !computed.showCachePanel;
+  ui.focusStepLabel.textContent = computed.focusStepLabel;
+  if (ui.compareMeaning) ui.compareMeaning.textContent = computed.compareMeaning;
 
-  ui.modelRationaleList.replaceChildren(fragment);
+  flowRenderer.render({ metrics: computed.metrics, keysToShow: computed.flowKeys, focusedKey: computed.focused.key });
+  cacheRenderer.render({ metrics: computed.metrics, labelsToShow: computed.cacheLabels, focusedKey: computed.focused.key });
+  latencyRenderer.render({ metrics: computed.metrics });
+  inferencePipelineRenderer.render({ focusedKey: computed.focused.key, scope: computed.activeScope });
+  architectureRenderer.render(computed.architecture);
+  insightPanelRenderer.render({ metrics: computed.metrics });
 }
 
-function updateNarrative(metrics) {
-  const narrative = [];
-  if (metrics.l1Miss > 0.25) narrative.push("L1ミス率が高く、ワーキングセットがオンチップSRAMを超えています。");
-  if (metrics.l3Miss > 0.3) narrative.push("L3を抜けてDRAMアクセスが増え、decode遅延が拡大しています。");
-  if (metrics.ssdAccess > metrics.dramAccess * 0.25) narrative.push("SSDオフロード比率が高く、I/O待ちの影響が顕著です。");
-  if (narrative.length === 0) narrative.push("現在の設定ではL1-L3再利用が効いており、比較的安定した推論です。");
-  ui.narrative.textContent = narrative.join(" ");
-}
-
-function updateUI() {
-  updateOutputs();
-
-  const params = readParams();
-  const metrics = compute(params);
-  const activeScope = scopeConfig[state.scope] ? state.scope : "macro";
-  const focused = getFocusedKey(activeScope, state.focusStepIndex);
-  state.focusStepIndex = focused.focusIndex;
-
-  ui.ttft.textContent = `${metrics.ttftMs.toFixed(1)} ms`;
-  ui.decodeLatency.textContent = `${metrics.decodeLatencyMs.toFixed(2)} ms/token`;
-  ui.throughput.textContent = `${metrics.tokensPerSec.toFixed(1)} tokens/s`;
-  ui.bottleneck.textContent = bottleneckLabel(metrics);
-  ui.cacheStatsPanel.hidden = !scopeConfig[activeScope].showCachePanel;
-  ui.focusStepLabel.textContent = focused.key ? getStepLabel(focused.key) : "フォーカスなし";
-  if (ui.compareMeaning) {
-    ui.compareMeaning.textContent = focused.key
-      ? `${stepLabels[focused.key].inference} ↔ ${stepLabels[focused.key].hardware}: ${stepLabels[focused.key].meaning}`
-      : "ステップを選択すると、推論計算とハードウェアイベントの対応を表示します。";
-  }
-
-  flowRenderer.update({ metrics, keysToShow: scopeConfig[activeScope].flowKeys, focusedKey: focused.key });
-  cacheRenderer.update({ metrics, labelsToShow: scopeConfig[activeScope].cacheLabels, focusedKey: focused.key });
-  latencyRenderer.update(metrics);
-  inferencePipelineRenderer.update({ focusedKey: focused.key, scope: activeScope });
-  architectureRenderer.update({
-    metrics,
-    weightBytes: getWeightBytes(params),
-    focusedKey: focused.key,
-    hardwareProfileKey: ui.hardwareProfile?.value
-  });
-
-  updateNarrative(metrics);
-  renderModelRationale(metrics);
-}
-
-function applyHardwareProfile(profileKey) {
-  const profile = hardwareProfiles[profileKey];
-  if (!profile) return;
-
-  for (const [key, value] of Object.entries(profile)) {
-    if (inputs[key]) {
-      inputs[key].value = String(value);
-    }
-  }
-
-  updateUI();
-}
-
-function stepFocus(delta) {
-  const steps = getScopeSteps(state.scope);
-  if (steps.length === 0) return;
-  state.focusStepIndex = (state.focusStepIndex + delta + steps.length) % steps.length;
-  updateUI();
-}
-
-for (const button of ui.scopeButtons) {
-  button.addEventListener("click", () => {
-    state.scope = button.dataset.scope || "macro";
-    state.focusStepIndex = 0;
-    for (const btn of ui.scopeButtons) {
-      btn.classList.toggle("is-active", btn === button);
-    }
-    updateUI();
-  });
-}
-
-ui.focusPrev.addEventListener("click", () => stepFocus(-1));
-ui.focusNext.addEventListener("click", () => stepFocus(1));
-
-for (const id of INPUT_IDS) {
-  inputs[id].addEventListener("input", updateUI);
-}
-
-ui.hardwareProfile?.addEventListener("change", (event) => {
-  applyHardwareProfile(event.target.value);
+const uiController = createUIController({
+  ui,
+  inputs,
+  outputs,
+  store,
+  formatControlOutput,
+  setActiveControlTab,
+  toggleArchControls
 });
 
-if (ui.hardwareProfile?.value) {
-  applyHardwareProfile(ui.hardwareProfile.value);
-} else {
-  updateUI();
-}
-
-
-for (const tab of ui.archTabs) {
-  tab.addEventListener("click", () => {
-    setActiveControlTab(tab.dataset.tab || "workload");
-  });
-}
-
-ui.archControlsToggle?.addEventListener("click", () => {
-  toggleArchControls();
+store.subscribe((state) => {
+  uiController.syncControlOutputs();
+  renderView(state);
 });
 
-if (window.matchMedia("(max-width: 860px)").matches) {
-  toggleArchControls(false);
-} else {
-  toggleArchControls(true);
-}
-
-setActiveControlTab("workload");
+uiController.bind();
+renderView(store.getState());

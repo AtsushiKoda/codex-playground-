@@ -269,12 +269,12 @@ export function createArchitectureRenderer({ svg }) {
     linkLayer.replaceChildren(links.computeToL1.group, links.l1ToL2.group, links.l2ToL3.group, links.l3ToDram.group, links.dramToSsd.group);
   }
 
-  function update({ metrics, weightBytes, focusedKey, hardwareProfileKey }) {
+  function render({ dramAccess, ssdAccess, dramAccessRatioBase, focusedKey, hardwareProfileKey }) {
     const themeKey = PROFILE_THEME_KEY[hardwareProfileKey] ?? "cpuServer";
     renderTheme(themeKey);
 
-    const dramRatio = clamp01(metrics.dramAccess / Math.max(weightBytes * 0.000005, 1));
-    const ssdRatio = clamp01(metrics.ssdAccess / Math.max(metrics.dramAccess, 1));
+    const dramRatio = clamp01(dramAccess / Math.max(dramAccessRatioBase, 1));
+    const ssdRatio = clamp01(ssdAccess / Math.max(dramAccess, 1));
 
     const updateLinkStyle = (entry, ratio, baseLabel) => {
       entry.line.style.strokeWidth = `${2 + ratio * 10}`;
@@ -292,5 +292,5 @@ export function createArchitectureRenderer({ svg }) {
     links.dramToSsd.line.classList.toggle("arch-link--hot", focusedKey === "ssdAccess" || ssdRatio > 0.35);
   }
 
-  return { update };
+  return { render };
 }

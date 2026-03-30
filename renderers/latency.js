@@ -35,7 +35,7 @@ export function createLatencyRenderer({ container, whyText }) {
 
   container.replaceChildren(fragment);
 
-  function update(metrics) {
+  function render({ metrics }) {
     const total = Math.max(metrics.decodeLatencyMs, 1e-9);
     let topContributor = { label: "L1", valueMs: 0, ratio: 0 };
 
@@ -57,5 +57,5 @@ export function createLatencyRenderer({ container, whyText }) {
     whyText.textContent = `主因: ${topContributor.label} が ${(topContributor.ratio * 100).toFixed(1)}%。理由: ${reasons.join(" / ")}。`;
   }
 
-  return { update };
+  return { render };
 }
