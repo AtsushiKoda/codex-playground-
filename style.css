@@ -191,6 +191,53 @@ output {
   gap: 0.5rem;
 }
 
+.latency-breakdown__intro {
+  color: var(--muted);
+}
+
+#latencyBreakdownBars {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.latency-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 180px;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.latency-row__bar-wrap {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: #0b1525;
+  border: 1px solid #29436f;
+  overflow: hidden;
+}
+
+.latency-row__bar {
+  height: 100%;
+  min-width: 2px;
+}
+
+.latency-row__value {
+  font-size: 0.85rem;
+  color: #dce9ff;
+}
+
+.latency-chip--l1 { background: linear-gradient(90deg, #9ec5ff, #8bb8ff); }
+.latency-chip--l2 { background: linear-gradient(90deg, #7eb7ff, #72adff); }
+.latency-chip--l3 { background: linear-gradient(90deg, #63a4ff, #5a9dff); }
+.latency-chip--dram { background: linear-gradient(90deg, #ffb06d, #ff9550); }
+.latency-chip--ssd { background: linear-gradient(90deg, #ff8c8c, #ff7070); }
+
+.latency-breakdown__why {
+  margin-top: 0.7rem;
+  color: #d4e4ff;
+}
+
 .flow-row {
   display: grid;
   grid-template-columns: 120px 1fr 120px;
