@@ -51,6 +51,13 @@
         </div>
 
         <h2>ハードウェア設定</h2>
+        <label>ハードウェアプロファイル
+          <select id="hardwareProfile">
+            <option value="entryCpu">エントリCPU</option>
+            <option value="serverCpu">サーバーCPU</option>
+            <option value="gpuInferenceNode">GPU推論ノード</option>
+          </select>
+        </label>
         <div class="control-grid">
           <label>L1 容量 (KB)
             <input id="l1Size" type="range" min="32" max="256" step="32" value="64" />
