@@ -23,13 +23,14 @@
           </div>
           <div class="compare-pane arch-stage">
             <h3>コンピュータ内部データ流れ</h3>
-            <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
+            <div class="arch-visual">
+              <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
+              <button id="archControlsToggle" type="button" class="arch-controls-toggle" aria-expanded="false" aria-controls="archControlsPanel">
+                設定パネル
+              </button>
+            </div>
 
-            <button id="archControlsToggle" type="button" class="arch-controls-toggle" aria-expanded="false" aria-controls="archControlsPanel">
-              設定パネル
-            </button>
-
-            <aside id="archControlsPanel" class="arch-controls-overlay" aria-label="図上設定パネル">
+            <aside id="archControlsPanel" class="arch-controls-overlay" aria-label="設定パネル">
               <div class="arch-controls-shell">
                 <div class="arch-controls-tabs" role="tablist" aria-label="設定カテゴリ">
                   <button type="button" class="arch-tab is-active" id="tabWorkload" data-tab="workload" role="tab" aria-selected="true" aria-controls="panelWorkload">推論ワークロード</button>
