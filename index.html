@@ -13,81 +13,101 @@
     </header>
 
     <main>
-      <section class="panel controls">
-        <h2>推論ワークロード</h2>
-        <div class="scope-switch" role="group" aria-label="可視化スコープ">
-          <span class="scope-switch__label">表示スコープ</span>
-          <div class="scope-switch__buttons">
-            <button type="button" class="scope-btn is-active" data-scope="macro">マクロ</button>
-            <button type="button" class="scope-btn" data-scope="meso">メソ</button>
-            <button type="button" class="scope-btn" data-scope="micro">ミクロ</button>
-          </div>
-        </div>
-        <div class="step-playback" role="group" aria-label="可視化フォーカス移動">
-          <button id="focusPrev" type="button" class="step-btn">← 前へ</button>
-          <span id="focusStepLabel" class="step-label"></span>
-          <button id="focusNext" type="button" class="step-btn">次へ →</button>
-        </div>
-        <div class="control-grid">
-          <label>モデルサイズ (B params)
-            <input id="modelSize" type="range" min="1" max="70" step="1" value="13" />
-            <output id="modelSizeOut"></output>
-          </label>
+      <section class="panel architecture-map">
+        <h2>アーキテクチャ・マップ</h2>
+        <div class="arch-stage">
+          <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
 
-          <label>コンテキスト長 (tokens)
-            <input id="contextLen" type="range" min="128" max="32768" step="128" value="4096" />
-            <output id="contextLenOut"></output>
-          </label>
+          <button id="archControlsToggle" type="button" class="arch-controls-toggle" aria-expanded="false" aria-controls="archControlsPanel">
+            設定パネル
+          </button>
 
-          <label>バッチサイズ
-            <input id="batchSize" type="range" min="1" max="32" step="1" value="4" />
-            <output id="batchSizeOut"></output>
-          </label>
+          <aside id="archControlsPanel" class="arch-controls-overlay" aria-label="図上設定パネル">
+            <div class="arch-controls-shell">
+              <div class="arch-controls-tabs" role="tablist" aria-label="設定カテゴリ">
+                <button type="button" class="arch-tab is-active" id="tabWorkload" data-tab="workload" role="tab" aria-selected="true" aria-controls="panelWorkload">推論ワークロード</button>
+                <button type="button" class="arch-tab" id="tabHardware" data-tab="hardware" role="tab" aria-selected="false" aria-controls="panelHardware">ハードウェア設定</button>
+              </div>
 
-          <label>量子化ビット幅
-            <input id="quantBits" type="range" min="4" max="16" step="4" value="8" />
-            <output id="quantBitsOut"></output>
-          </label>
-        </div>
+              <section class="arch-tab-panel is-active" id="panelWorkload" data-panel="workload" role="tabpanel" aria-labelledby="tabWorkload">
+                <div class="scope-switch" role="group" aria-label="可視化スコープ">
+                  <span class="scope-switch__label">表示スコープ</span>
+                  <div class="scope-switch__buttons">
+                    <button type="button" class="scope-btn is-active" data-scope="macro">マクロ</button>
+                    <button type="button" class="scope-btn" data-scope="meso">メソ</button>
+                    <button type="button" class="scope-btn" data-scope="micro">ミクロ</button>
+                  </div>
+                </div>
+                <div class="step-playback" role="group" aria-label="可視化フォーカス移動">
+                  <button id="focusPrev" type="button" class="step-btn">← 前へ</button>
+                  <span id="focusStepLabel" class="step-label"></span>
+                  <button id="focusNext" type="button" class="step-btn">次へ →</button>
+                </div>
+                <div class="control-grid">
+                  <label>モデルサイズ (B params)
+                    <input id="modelSize" type="range" min="1" max="70" step="1" value="13" />
+                    <output id="modelSizeOut"></output>
+                  </label>
 
-        <h2>ハードウェア設定</h2>
-        <label>ハードウェアプロファイル
-          <select id="hardwareProfile">
-            <option value="entryCpu">エントリCPU</option>
-            <option value="serverCpu">サーバーCPU</option>
-            <option value="gpuInferenceNode">GPU推論ノード</option>
-          </select>
-        </label>
-        <div class="control-grid">
-          <label>L1 容量 (KB)
-            <input id="l1Size" type="range" min="32" max="256" step="32" value="64" />
-            <output id="l1SizeOut"></output>
-          </label>
+                  <label>コンテキスト長 (tokens)
+                    <input id="contextLen" type="range" min="128" max="32768" step="128" value="4096" />
+                    <output id="contextLenOut"></output>
+                  </label>
 
-          <label>L2 容量 (MB)
-            <input id="l2Size" type="range" min="1" max="8" step="1" value="2" />
-            <output id="l2SizeOut"></output>
-          </label>
+                  <label>バッチサイズ
+                    <input id="batchSize" type="range" min="1" max="32" step="1" value="4" />
+                    <output id="batchSizeOut"></output>
+                  </label>
 
-          <label>L3 容量 (MB)
-            <input id="l3Size" type="range" min="8" max="128" step="8" value="32" />
-            <output id="l3SizeOut"></output>
-          </label>
+                  <label>量子化ビット幅
+                    <input id="quantBits" type="range" min="4" max="16" step="4" value="8" />
+                    <output id="quantBitsOut"></output>
+                  </label>
+                </div>
+              </section>
 
-          <label>DRAM 帯域 (GB/s)
-            <input id="dramBw" type="range" min="30" max="400" step="10" value="180" />
-            <output id="dramBwOut"></output>
-          </label>
+              <section class="arch-tab-panel" id="panelHardware" data-panel="hardware" role="tabpanel" aria-labelledby="tabHardware" hidden>
+                <label>ハードウェアプロファイル
+                  <select id="hardwareProfile">
+                    <option value="entryCpu">エントリCPU</option>
+                    <option value="serverCpu">サーバーCPU</option>
+                    <option value="gpuInferenceNode">GPU推論ノード</option>
+                  </select>
+                </label>
+                <div class="control-grid">
+                  <label>L1 容量 (KB)
+                    <input id="l1Size" type="range" min="32" max="256" step="32" value="64" />
+                    <output id="l1SizeOut"></output>
+                  </label>
 
-          <label>SSD 帯域 (GB/s)
-            <input id="ssdBw" type="range" min="1" max="20" step="1" value="7" />
-            <output id="ssdBwOut"></output>
-          </label>
+                  <label>L2 容量 (MB)
+                    <input id="l2Size" type="range" min="1" max="8" step="1" value="2" />
+                    <output id="l2SizeOut"></output>
+                  </label>
 
-          <label>SSDオフロード比率 (%)
-            <input id="offloadRate" type="range" min="0" max="70" step="5" value="15" />
-            <output id="offloadRateOut"></output>
-          </label>
+                  <label>L3 容量 (MB)
+                    <input id="l3Size" type="range" min="8" max="128" step="8" value="32" />
+                    <output id="l3SizeOut"></output>
+                  </label>
+
+                  <label>DRAM 帯域 (GB/s)
+                    <input id="dramBw" type="range" min="30" max="400" step="10" value="180" />
+                    <output id="dramBwOut"></output>
+                  </label>
+
+                  <label>SSD 帯域 (GB/s)
+                    <input id="ssdBw" type="range" min="1" max="20" step="1" value="7" />
+                    <output id="ssdBwOut"></output>
+                  </label>
+
+                  <label>SSDオフロード比率 (%)
+                    <input id="offloadRate" type="range" min="0" max="70" step="5" value="15" />
+                    <output id="offloadRateOut"></output>
+                  </label>
+                </div>
+              </section>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -99,11 +119,6 @@
           <article><h3>推定 Throughput</h3><p id="throughput"></p></article>
           <article><h3>支配ボトルネック</h3><p id="bottleneck"></p></article>
         </div>
-      </section>
-
-      <section class="panel architecture-map">
-        <h2>アーキテクチャ・マップ</h2>
-        <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
       </section>
 
       <section class="panel memory-flow">
