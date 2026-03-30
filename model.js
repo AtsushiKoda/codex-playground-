@@ -114,12 +114,38 @@ export const scopeConfig = {
 };
 
 export const stepLabels = {
-  l1Access: "L1 フォーカス",
-  l2Access: "L2 フォーカス",
-  l3Access: "L3 フォーカス",
-  dramAccess: "DRAM フォーカス",
-  ssdAccess: "SSD フォーカス"
+  l1Access: {
+    inference: "Prefill",
+    hardware: "L1 キャッシュ再利用",
+    meaning: "直近トークンや一時値をL1に収め、最小遅延で次演算へ供給する。"
+  },
+  l2Access: {
+    inference: "Decode",
+    hardware: "L2 キャッシュ展開",
+    meaning: "デコード反復で不足したデータをL2から補い、L1ミスを吸収する。"
+  },
+  l3Access: {
+    inference: "KV参照",
+    hardware: "L3 共有キャッシュ参照",
+    meaning: "長い文脈のKVを共有キャッシュ経由で探索し、DRAM流入を抑制する。"
+  },
+  dramAccess: {
+    inference: "Projection",
+    hardware: "DRAM 帯域消費",
+    meaning: "射影/線形層で重み・活性が主メモリ帯域を強く消費する。"
+  },
+  ssdAccess: {
+    inference: "Weight Offload",
+    hardware: "SSD 読み戻し",
+    meaning: "オフロード重みをストレージから戻すためI/O待ちが律速になりやすい。"
+  }
 };
+
+export function getStepLabel(key) {
+  const info = stepLabels[key];
+  if (!info) return "フォーカスなし";
+  return `${info.inference} ↔ ${info.hardware}`;
+}
 
 export function clamp01(v) {
   return Math.max(0, Math.min(1, v));

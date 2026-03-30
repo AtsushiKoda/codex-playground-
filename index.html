@@ -14,40 +14,47 @@
 
     <main>
       <section class="panel architecture-map">
-        <h2>アーキテクチャ・マップ</h2>
-        <div class="arch-stage">
-          <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
+        <h2>推論ステップ比較マップ</h2>
+        <p id="compareMeaning" class="compare-meaning"></p>
+        <div class="compare-stage">
+          <div class="compare-pane">
+            <h3>LLM推論計算過程</h3>
+            <svg id="inferenceDiagram" viewBox="0 0 960 240" role="img" aria-label="PrefillからProjectionまでの推論ステップ図"></svg>
+          </div>
+          <div class="compare-pane arch-stage">
+            <h3>コンピュータ内部データ流れ</h3>
+            <svg id="archDiagram" viewBox="0 0 960 320" role="img" aria-label="Computeからメモリ階層へのアクセス図"></svg>
 
-          <button id="archControlsToggle" type="button" class="arch-controls-toggle" aria-expanded="false" aria-controls="archControlsPanel">
-            設定パネル
-          </button>
+            <button id="archControlsToggle" type="button" class="arch-controls-toggle" aria-expanded="false" aria-controls="archControlsPanel">
+              設定パネル
+            </button>
 
-          <aside id="archControlsPanel" class="arch-controls-overlay" aria-label="図上設定パネル">
-            <div class="arch-controls-shell">
-              <div class="arch-controls-tabs" role="tablist" aria-label="設定カテゴリ">
-                <button type="button" class="arch-tab is-active" id="tabWorkload" data-tab="workload" role="tab" aria-selected="true" aria-controls="panelWorkload">推論ワークロード</button>
-                <button type="button" class="arch-tab" id="tabHardware" data-tab="hardware" role="tab" aria-selected="false" aria-controls="panelHardware">ハードウェア設定</button>
-              </div>
+            <aside id="archControlsPanel" class="arch-controls-overlay" aria-label="図上設定パネル">
+              <div class="arch-controls-shell">
+                <div class="arch-controls-tabs" role="tablist" aria-label="設定カテゴリ">
+                  <button type="button" class="arch-tab is-active" id="tabWorkload" data-tab="workload" role="tab" aria-selected="true" aria-controls="panelWorkload">推論ワークロード</button>
+                  <button type="button" class="arch-tab" id="tabHardware" data-tab="hardware" role="tab" aria-selected="false" aria-controls="panelHardware">ハードウェア設定</button>
+                </div>
 
-              <section class="arch-tab-panel is-active" id="panelWorkload" data-panel="workload" role="tabpanel" aria-labelledby="tabWorkload">
-                <div class="scope-switch" role="group" aria-label="可視化スコープ">
-                  <span class="scope-switch__label">表示スコープ</span>
-                  <div class="scope-switch__buttons">
-                    <button type="button" class="scope-btn is-active" data-scope="macro">マクロ</button>
-                    <button type="button" class="scope-btn" data-scope="meso">メソ</button>
-                    <button type="button" class="scope-btn" data-scope="micro">ミクロ</button>
+                <section class="arch-tab-panel is-active" id="panelWorkload" data-panel="workload" role="tabpanel" aria-labelledby="tabWorkload">
+                  <div class="scope-switch" role="group" aria-label="可視化スコープ">
+                    <span class="scope-switch__label">表示スコープ</span>
+                    <div class="scope-switch__buttons">
+                      <button type="button" class="scope-btn is-active" data-scope="macro">マクロ</button>
+                      <button type="button" class="scope-btn" data-scope="meso">メソ</button>
+                      <button type="button" class="scope-btn" data-scope="micro">ミクロ</button>
+                    </div>
                   </div>
-                </div>
-                <div class="step-playback" role="group" aria-label="可視化フォーカス移動">
-                  <button id="focusPrev" type="button" class="step-btn">← 前へ</button>
-                  <span id="focusStepLabel" class="step-label"></span>
-                  <button id="focusNext" type="button" class="step-btn">次へ →</button>
-                </div>
-                <div class="control-grid">
-                  <label>モデルサイズ (B params)
-                    <input id="modelSize" type="range" min="1" max="70" step="1" value="13" />
-                    <output id="modelSizeOut"></output>
-                  </label>
+                  <div class="step-playback" role="group" aria-label="可視化フォーカス移動">
+                    <button id="focusPrev" type="button" class="step-btn">← 前へ</button>
+                    <span id="focusStepLabel" class="step-label"></span>
+                    <button id="focusNext" type="button" class="step-btn">次へ →</button>
+                  </div>
+                  <div class="control-grid">
+                    <label>モデルサイズ (B params)
+                      <input id="modelSize" type="range" min="1" max="70" step="1" value="13" />
+                      <output id="modelSizeOut"></output>
+                    </label>
 
                   <label>コンテキスト長 (tokens)
                     <input id="contextLen" type="range" min="128" max="32768" step="128" value="4096" />
@@ -63,8 +70,8 @@
                     <input id="quantBits" type="range" min="4" max="16" step="4" value="8" />
                     <output id="quantBitsOut"></output>
                   </label>
-                </div>
-              </section>
+                  </div>
+                </section>
 
               <section class="arch-tab-panel" id="panelHardware" data-panel="hardware" role="tabpanel" aria-labelledby="tabHardware" hidden>
                 <label>ハードウェアプロファイル
@@ -106,8 +113,9 @@
                   </label>
                 </div>
               </section>
-            </div>
-          </aside>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
 
