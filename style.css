@@ -242,3 +242,42 @@ th, td {
 .bad { color: var(--bad); }
 .warn { color: var(--warn); }
 .good { color: var(--good); }
+
+.model-rationale {
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #2c4065;
+}
+
+.model-rationale__intro {
+  color: var(--muted);
+}
+
+.model-rationale__list {
+  margin: 0.45rem 0 0;
+}
+
+.model-rationale__list dt {
+  margin-top: 0.6rem;
+  font-weight: 700;
+}
+
+.model-rationale__list dd {
+  margin: 0.2rem 0 0.55rem 0;
+  color: #cfddf8;
+  line-height: 1.55;
+}
+
+.model-rationale__list code {
+  color: #d7e8ff;
+  background: #0d172a;
+  border: 1px solid #2a416b;
+  border-radius: 6px;
+  padding: 0.08rem 0.35rem;
+}
+
+.formula,
+.current-value {
+  display: block;
+  margin-top: 0.25rem;
+}

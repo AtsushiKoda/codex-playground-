@@ -17,6 +17,7 @@ const ui = {
   flowBars: document.getElementById("flowBars"),
   cacheTableBody: document.getElementById("cacheTableBody"),
   narrative: document.getElementById("narrative"),
+  modelRationaleList: document.getElementById("modelRationaleList"),
   archDiagram: document.getElementById("archDiagram"),
   scopeButtons: Array.from(document.querySelectorAll(".scope-btn")),
   cacheStatsPanel: document.querySelector(".cache-stats"),
@@ -233,6 +234,7 @@ function compute() {
   const ssdUtil = clamp01((ssdAccess / Math.max(1, decodeLatencyMs / 1000)) / ssdBw);
 
   return {
+    workingSet, bytesPerToken, dramTimeS, ssdTimeS, kvWorkingSet,
     l1Hit, l2Hit, l3Hit,
     l1Miss, l2Miss, l3Miss,
     l1Access, l2Access, l3Access, dramAccess, ssdAccess,
@@ -252,11 +254,69 @@ function pct(v) {
   return `${(v * 100).toFixed(1)}%`;
 }
 
+function fmtMs(v) {
+  return `${v.toFixed(2)} ms`;
+}
+
+function fmtSec(v) {
+  if (v < 0.001) return `${(v * 1e6).toFixed(2)} µs`;
+  if (v < 1) return `${(v * 1e3).toFixed(2)} ms`;
+  return `${v.toFixed(3)} s`;
+}
+
 function bottleneckLabel(m) {
   if (m.ssdAccess > m.dramAccess * 0.35 || m.ssdUtil > 0.75) return "I/O-bound (SSD)";
   if (m.dramUtil > 0.7 || m.l3Miss > 0.35) return "Memory-bound (DRAM)";
   if (m.l2Miss > 0.4) return "Cache-thrashing (L2/L3)";
   return "Compute寄り (on-chip SRAM活用)";
+}
+
+function renderModelRationale(metrics) {
+  if (!ui.modelRationaleList) return;
+
+  const items = [
+    {
+      title: "bytesPerToken",
+      explanation: "1トークンを生成する際に触る総データ量（重みストリーミング + KV参照 + 活性）です。",
+      formula: "(weightBytes×0.0000022) + (kvBytesPerToken×contextLen×0.03) + activationBytesPerToken",
+      value: fmtBytes(metrics.bytesPerToken)
+    },
+    {
+      title: "l1/l2/l3 hit",
+      explanation: "ワーキングセットが各キャッシュ容量をどれだけ超えるかで、段階的にヒット率が下がる簡略モデルです。",
+      formula: "lXHit = clamp01(base - log2(1 + workingSet/lXBytes)×係数)",
+      value: `L1 ${pct(metrics.l1Hit)} / L2 ${pct(metrics.l2Hit)} / L3 ${pct(metrics.l3Hit)}`
+    },
+    {
+      title: "decodeLatencyMs",
+      explanation: "キャッシュ〜SSDの待ち時間近似と、DRAM/SSD転送時間を合算した1 tokenあたり遅延です。",
+      formula: "latencyNs/1e6 + (dramTimeS + ssdTimeS)×1000",
+      value: `${fmtMs(metrics.decodeLatencyMs)} (DRAM ${fmtSec(metrics.dramTimeS)}, SSD ${fmtSec(metrics.ssdTimeS)})`
+    },
+    {
+      title: "ttftMs",
+      explanation: "初回トークン生成はデコード数ステップ分の準備が必要という仮定で、decode latencyに文脈長依存の係数を掛けます。",
+      formula: "decodeLatencyMs × (4 + log2(contextLen/128 + 1))",
+      value: fmtMs(metrics.ttftMs)
+    }
+  ];
+
+  const fragment = document.createDocumentFragment();
+  for (const item of items) {
+    const dt = document.createElement("dt");
+    dt.innerHTML = `<code>${item.title}</code>`;
+    const dd = document.createElement("dd");
+    dd.innerHTML = `${item.explanation} <span class="formula">式: <code>${item.formula}</code></span> <span class="current-value">現在値: ${item.value}</span>`;
+    fragment.append(dt, dd);
+  }
+
+  const wsDt = document.createElement("dt");
+  wsDt.innerHTML = "<code>workingSet</code>";
+  const wsDd = document.createElement("dd");
+  wsDd.innerHTML = `hit率推定に使う作業集合の近似です。 <span class="current-value">現在値: ${fmtBytes(metrics.workingSet)}（KV作業集合 ${fmtBytes(metrics.kvWorkingSet)}）</span>`;
+  fragment.append(wsDt, wsDd);
+
+  ui.modelRationaleList.replaceChildren(fragment);
 }
 
 function createFlowRow(label) {
@@ -520,6 +580,7 @@ function updateUI() {
   if (narrative.length === 0) narrative.push("現在の設定ではL1-L3再利用が効いており、比較的安定した推論です。");
 
   ui.narrative.textContent = narrative.join(" ");
+  renderModelRationale(m);
 }
 
 function applyHardwareProfile(profileKey) {

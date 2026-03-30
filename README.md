@@ -38,3 +38,17 @@ python3 -m http.server 8000
 ### 教育向け簡略化について
 
 このツールは教育向けの**簡略化モデル**です。実際のCPU/GPUマイクロアーキテクチャ、NUMA、カーネル実装、ランタイム最適化、I/Oスタックなどは大幅に抽象化しています。実機プロファイラ（perf、VTune、Nsight等）で得られる実測値とは一致しません。
+
+### 近似式の前提
+
+- `bytesPerToken` は **重みストリーミング + KVキャッシュ参照 + 活性値** の単純和で近似しています。実装は `compute()` 内の `bytesPerToken` 計算式に対応します。
+- `l1/l2/l3 hit` は `workingSet / cache容量` の対数で低下する経験則型モデルです（`clamp01(base - log2(1 + ratio) * coeff)`）。実装は `l1Hit/l2Hit/l3Hit` 計算に対応します。
+- `decodeLatencyMs` は各階層アクセス待ちの近似（`latencyNs`）に、`dramTimeS` / `ssdTimeS` の帯域制約時間を合算しています。
+- `ttftMs` は「初回トークンは decode の複数ステップ分の準備コストを含む」という仮定で `decodeLatencyMs` に文脈長依存係数を掛けています。
+- UI の「解釈 > モデル根拠」には、上記の式説明と現在値（`workingSet`, `bytesPerToken`, `dramTimeS`, `ssdTimeS`, `decodeLatencyMs`, `ttftMs`）を表示し、実装と説明を1:1で対応させています。
+
+### 用途外（実測代替不可）
+
+- このツールの値は**容量計画・教育・相対比較**向けであり、SLA見積もりや本番性能保証の根拠には使えません。
+- 実機では、カーネル融合、プリフェッチ、NUMA配置、I/Oキュー深度、ページキャッシュ、ランタイム最適化などが大きく影響します。
+- 運用判断には必ず実測を併用してください（例: `perf`, `vtune`, `nsys`, `iostat`, アプリ側トレース）。
